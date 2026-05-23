@@ -1,0 +1,1636 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="自己投資">
+<title>自己投資ゲーム</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=M+PLUS+Rounded+1c:wght@400;700&display=swap');
+:root{--green:#1D9E75;--green-l:#E1F5EE;--green-d:#0F6E56;--amber:#EF9F27;--amber-l:#FAEEDA;--amber-d:#854F0B;--coral:#D85A30;--coral-l:#FAECE7;--coral-d:#993C1D;--bg:#F7F6F2;--surface:#fff;--border:rgba(0,0,0,0.08);--text:#1a1a1a;--muted:#777;--r:16px;--rs:10px}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.screen{display:none;min-height:100vh}.screen.active{display:block}
+
+/* USER SELECT */
+#screen-users{padding:32px 20px 40px;display:flex;flex-direction:column;align-items:center}
+.app-logo{font-family:'M PLUS Rounded 1c',sans-serif;font-size:26px;font-weight:700;color:var(--green-d);margin-bottom:6px;text-align:center}
+.app-tagline{font-size:13px;color:var(--muted);margin-bottom:32px;text-align:center}
+.user-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;max-width:360px;margin-bottom:20px}
+.user-card{background:var(--surface);border:2px solid var(--border);border-radius:var(--r);padding:20px 12px;text-align:center;cursor:pointer;transition:all .15s;position:relative}
+.user-card:active{transform:scale(.97)}
+.user-avatar{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 10px}
+.user-name{font-size:14px;font-weight:500}
+.user-streak{font-size:11px;color:var(--muted);margin-top:3px}
+.user-edit-btn{position:absolute;top:8px;right:8px;background:none;border:none;font-size:14px;cursor:pointer;opacity:.4;padding:4px}
+.add-user-btn{width:100%;max-width:360px;padding:14px;border:1.5px dashed var(--border);border-radius:var(--r);background:none;font-family:'Noto Sans JP',sans-serif;font-size:14px;color:var(--muted);cursor:pointer}
+
+/* MAIN APP */
+#screen-app{padding-bottom:80px}
+.header{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 16px 10px;position:sticky;top:0;z-index:100}
+.header-row{display:flex;align-items:center;gap:10px}
+.header-avatar{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.header-name{font-family:'M PLUS Rounded 1c',sans-serif;font-size:15px;font-weight:700;flex:1}
+.header-date{font-size:11px;color:var(--muted)}
+.switch-btn{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:12px;color:var(--muted);cursor:pointer;font-family:'Noto Sans JP',sans-serif;white-space:nowrap}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom)}
+.nav-btn{flex:1;padding:10px 0 8px;border:none;background:transparent;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;font-family:'Noto Sans JP',sans-serif;font-size:11px;color:var(--muted)}
+.nav-btn .ni{font-size:20px}.nav-btn.active{color:var(--green);font-weight:500}
+.page{display:none;padding:14px}.page.active{display:block}
+
+/* STATS */
+.stats-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px}
+.stat-lbl{font-size:11px;color:var(--muted);margin-bottom:3px}
+.stat-val{font-size:26px;font-weight:700;line-height:1}
+.stat-unit{font-size:12px;color:var(--muted);margin-top:2px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;margin-bottom:12px}
+.sec{font-size:12px;font-weight:500;color:var(--muted);letter-spacing:.4px;margin:0 0 8px}
+
+/* BONUS PIPS */
+.bonus-levels{display:flex;gap:4px;justify-content:space-between;margin-bottom:10px}
+.bp{flex:1;text-align:center}
+.bp-circle{width:34px;height:34px;border-radius:50%;background:var(--bg);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;margin:0 auto 3px;font-size:11px;font-weight:700;color:var(--muted);transition:all .2s}
+.bp-circle.done{background:var(--green);border-color:var(--green);color:#fff}
+.bp-circle.cur{background:var(--green-l);border-color:var(--green);color:var(--green-d);box-shadow:0 0 0 3px rgba(29,158,117,.15)}
+.bp-lbl{font-size:10px;color:var(--muted)}.bp-lbl.on{color:var(--green-d);font-weight:500}
+.bonus-footer{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border);padding-top:10px;margin-top:4px}
+.bonus-footer-lbl{font-size:12px;color:var(--muted)}
+.bonus-mult-val{font-size:18px;font-weight:700;color:var(--green)}
+
+/* ACTIVITY CARDS */
+.act-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.act-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:11px 10px;cursor:pointer;transition:all .15s;text-align:left;font-family:'Noto Sans JP',sans-serif;width:100%;position:relative}
+.act-card:active{transform:scale(.97)}
+.act-card.done-full{background:var(--green-l);border-color:var(--green)}
+.act-card.done-partial{background:#fffbeb;border-color:var(--amber)}
+.act-emoji{font-size:18px;margin-bottom:4px;display:block}
+.act-name{font-size:12px;font-weight:500;color:var(--text);margin-bottom:4px;line-height:1.3}
+/* progress bars inside card */
+.act-progress{display:flex;flex-direction:column;gap:3px;margin-bottom:5px}
+.prog-row{display:flex;align-items:center;gap:5px}
+.prog-label{font-size:10px;color:var(--muted);width:22px;flex-shrink:0}
+.prog-track{flex:1;height:5px;background:var(--bg);border-radius:3px;overflow:hidden}
+.prog-fill-green{height:100%;background:var(--green);border-radius:3px;transition:width .3s}
+.prog-fill-amber{height:100%;background:var(--amber);border-radius:3px;transition:width .3s}
+.prog-val{font-size:10px;color:var(--muted);width:28px;text-align:right;flex-shrink:0}
+.act-badge{display:inline-block;margin-top:4px;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px}
+.act-badge.green{color:var(--green-d);background:var(--green-l)}
+.act-badge.amber{color:var(--amber-d);background:var(--amber-l)}
+.act-badge.gray{color:var(--muted);background:var(--bg)}
+.mdot{position:absolute;top:8px;right:8px;width:6px;height:6px;border-radius:50%}
+.mdot.mandatory{background:var(--coral)}
+.mdot.done{background:var(--green)}
+
+/* LOG */
+.log-item{background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);padding:10px 12px;display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.log-em{width:32px;height:32px;border-radius:50%;background:var(--green-l);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.log-info{flex:1}.log-name{font-size:13px;font-weight:500}
+.log-sub{font-size:11px;color:var(--muted);margin-top:1px}
+.log-pts{font-size:14px;font-weight:700;color:var(--green)}
+.empty{text-align:center;padding:40px 0;color:var(--muted);font-size:14px}
+
+/* REWARD */
+.acc-banner{background:var(--green-d);border-radius:var(--r);padding:18px 20px;margin-bottom:14px;color:#fff}
+.acc-banner .lbl{font-size:12px;opacity:.75;margin-bottom:3px}
+.acc-banner .val{font-size:30px;font-weight:700}
+.acc-banner .sub{font-size:12px;opacity:.7;margin-top:5px}
+.reward-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:10px}
+.rh{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.rname{font-size:14px;font-weight:500}
+.rbadge{font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px}
+.rbadge.sm{background:var(--green-l);color:var(--green-d)}
+.rbadge.md{background:var(--amber-l);color:var(--amber-d)}
+.rbadge.lg{background:var(--coral-l);color:var(--coral-d)}
+.rexample{font-size:12px;color:var(--muted);line-height:1.6}
+.use-btn{width:100%;margin-top:10px;padding:9px;border-radius:var(--rs);border:1px solid var(--green);background:transparent;color:var(--green);font-family:'Noto Sans JP',sans-serif;font-size:13px;font-weight:500;cursor:pointer}
+.use-btn:disabled{border-color:var(--border);color:var(--muted);cursor:default;background:var(--bg)}
+
+/* SETTINGS */
+.settings-act-item{background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);padding:12px 14px;margin-bottom:8px}
+.sai-top{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.sai-em{font-size:18px;width:24px;text-align:center;flex-shrink:0}
+.sai-name{font-size:13px;font-weight:500;flex:1}
+.sai-right{display:flex;align-items:center;gap:6px}
+.mtoggle{width:36px;height:20px;border-radius:10px;border:none;cursor:pointer;transition:background .2s;position:relative;flex-shrink:0}
+.mtoggle::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .2s}
+.mtoggle.on{background:var(--green)}.mtoggle.off{background:#ccc}
+.mtoggle.on::after{left:18px}
+.edit-btn-sm{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;color:var(--muted);font-family:'Noto Sans JP',sans-serif}
+.del-btn-sm{background:none;border:none;font-size:15px;cursor:pointer;color:var(--muted);padding:3px}
+.sai-goals{display:flex;gap:8px;flex-wrap:wrap}
+.goal-pill{font-size:11px;padding:3px 9px;border-radius:20px;background:var(--bg);color:var(--muted);border:1px solid var(--border)}
+.goal-pill.active{background:var(--green-l);color:var(--green-d);border-color:var(--green)}
+.add-act-btn{width:100%;padding:12px;border:1.5px dashed var(--border);border-radius:var(--rs);background:none;font-family:'Noto Sans JP',sans-serif;font-size:13px;color:var(--muted);cursor:pointer;margin-top:4px}
+.danger-zone{margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
+.danger-btn{width:100%;padding:11px;border:1px solid #fca5a5;border-radius:var(--rs);background:none;font-family:'Noto Sans JP',sans-serif;font-size:13px;color:var(--coral-d);cursor:pointer}
+.reset-btn{width:100%;padding:11px;border:1px solid var(--border);border-radius:var(--rs);background:var(--surface);font-family:'Noto Sans JP',sans-serif;font-size:13px;color:var(--muted);cursor:pointer;margin-top:4px}
+
+/* MANDATORY BAR */
+.mbar-wrap{height:5px;background:var(--bg);border-radius:3px;margin-top:8px;overflow:hidden}
+.mbar-fill{height:100%;background:var(--green);border-radius:3px;transition:width .4s}
+
+/* MODALS */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:flex-end;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border-radius:20px 20px 0 0;padding:20px 20px 44px;width:100%;max-width:480px;max-height:88vh;overflow-y:auto}
+.modal-title{font-size:16px;font-weight:700;margin-bottom:16px}
+.field{margin-bottom:13px}
+.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
+.field input,.field select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--rs);font-family:'Noto Sans JP',sans-serif;font-size:14px;background:var(--bg);color:var(--text)}
+.field-row{display:flex;gap:8px}.field-row .field{flex:1}
+.modal-btns{display:flex;gap:8px;margin-top:6px}
+.btn-primary{flex:1;padding:12px;border:none;border-radius:var(--rs);background:var(--green);color:#fff;font-family:'Noto Sans JP',sans-serif;font-size:14px;font-weight:500;cursor:pointer}
+.btn-cancel{padding:12px 16px;border:1px solid var(--border);border-radius:var(--rs);background:none;font-family:'Noto Sans JP',sans-serif;font-size:14px;color:var(--muted);cursor:pointer}
+.goal-type-btns{display:flex;gap:6px;margin-bottom:13px}
+.gtb{flex:1;padding:9px;border-radius:var(--rs);border:1px solid var(--border);background:none;font-family:'Noto Sans JP',sans-serif;font-size:13px;color:var(--muted);cursor:pointer}
+.gtb.active{background:var(--green-l);border-color:var(--green);color:var(--green-d);font-weight:500}
+.goal-section{background:var(--bg);border-radius:var(--rs);padding:12px;margin-bottom:13px}
+.goal-section .sec{margin-bottom:8px}
+
+/* TIME PICKER MODAL */
+.time-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
+.time-btn{padding:14px 8px;border:1px solid var(--border);border-radius:var(--rs);background:var(--surface);font-family:'Noto Sans JP',sans-serif;font-size:15px;font-weight:500;cursor:pointer;text-align:center;transition:all .15s}
+.time-btn:active{transform:scale(.96)}
+.time-btn.selected{background:var(--green-l);border-color:var(--green);color:var(--green-d)}
+.time-custom-row{display:flex;align-items:center;gap:8px;margin-top:4px}
+.time-custom-row input{flex:1;padding:10px;border:1px solid var(--border);border-radius:var(--rs);font-size:15px;font-family:'Noto Sans JP',sans-serif;background:var(--bg);text-align:center}
+
+
+.date-btn-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.date-btn{padding:7px 12px;border-radius:20px;border:1px solid var(--border);background:var(--bg);font-family:'Noto Sans JP',sans-serif;font-size:13px;color:var(--muted);cursor:pointer;transition:all .15s}
+.date-btn.sel{background:var(--green-l);border-color:var(--green);color:var(--green-d);font-weight:500}
+.day-group{margin-bottom:14px}
+.day-group-header{font-size:12px;font-weight:500;color:var(--muted);letter-spacing:.4px;padding:6px 0 6px;border-bottom:1px solid var(--border);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.day-group-header .day-total{font-size:11px;color:var(--muted)}
+
+
+.skip-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid var(--border);margin-top:8px}
+.skip-lbl{font-size:12px;color:var(--muted)}
+.skip-toggle{width:36px;height:20px;border-radius:10px;border:none;cursor:pointer;transition:background .2s;position:relative;flex-shrink:0}
+.skip-toggle::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .2s}
+.skip-toggle.on{background:var(--amber)}.skip-toggle.off{background:#ccc}
+.skip-toggle.on::after{left:18px}
+.penalty-badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;background:var(--coral-l);color:var(--coral-d)}
+
+
+.prog-combined-wrap{margin:5px 0 4px}
+.prog-combined-track{height:7px;background:var(--bg);border-radius:4px;overflow:hidden;display:flex;margin-bottom:2px}
+.prog-combined-a{height:100%;background:var(--amber);border-radius:4px 0 0 4px;transition:width .3s;min-width:0}
+.prog-combined-b{height:100%;background:#60C4A0;transition:width .3s;min-width:0}
+.prog-combined-labels{display:flex;justify-content:space-between;align-items:center}
+.prog-combined-sub{font-size:10px;color:var(--muted)}
+.prog-combined-pct{font-size:11px;font-weight:700}
+
+
+.cal-view-btn{padding:6px 14px;border-radius:20px;border:1px solid var(--border);background:var(--bg);font-family:'Noto Sans JP',sans-serif;font-size:13px;color:var(--muted);cursor:pointer}
+.cal-view-btn.active{background:var(--green);color:#fff;border-color:var(--green);font-weight:500}
+.cal-nav-btn{width:32px;height:32px;border-radius:50%;border:1px solid var(--border);background:var(--surface);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.cal-dow-row{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px}
+.cal-dow{text-align:center;font-size:10px;color:var(--muted);padding:2px 0}
+.cal-month-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cal-week-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-day{border-radius:8px;padding:4px 2px;text-align:center;cursor:pointer;position:relative;min-height:52px;background:var(--surface);border:1px solid var(--border);transition:all .15s}
+.cal-day:active{transform:scale(.97)}
+.cal-day.today{border-color:var(--green);border-width:2px}
+.cal-day.selected{background:var(--green-l);border-color:var(--green)}
+.cal-day.other-month{opacity:.35}
+.cal-day.no-data{background:var(--bg);cursor:default}
+.cal-day-num{font-size:11px;font-weight:500;color:var(--text);margin-bottom:3px}
+.cal-day.today .cal-day-num{color:var(--green-d);font-weight:700}
+.cal-dots{display:flex;flex-wrap:wrap;gap:2px;justify-content:center;padding:0 2px}
+.cal-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.cal-week-day{border-radius:10px;padding:8px 6px;background:var(--surface);border:1px solid var(--border);cursor:pointer;transition:all .15s}
+.cal-week-day.today{border-color:var(--green);border-width:2px}
+.cal-week-day.selected{background:var(--green-l);border-color:var(--green)}
+.cal-week-day-label{font-size:11px;color:var(--muted);text-align:center;margin-bottom:4px}
+.cal-week-day-num{font-size:15px;font-weight:700;text-align:center;margin-bottom:6px}
+.cal-week-day.today .cal-week-day-num{color:var(--green-d)}
+.cal-week-acts{display:flex;flex-direction:column;gap:3px}
+.cal-week-act-row{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted)}
+.cal-legend-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px}
+.cal-legend-item{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted)}
+.cal-legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.detail-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:8px}
+.detail-header{font-size:13px;font-weight:500;color:var(--text);margin-bottom:10px;display:flex;justify-content:space-between}
+
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(10px);background:#1a1a1a;color:#fff;padding:9px 18px;border-radius:30px;font-size:13px;font-weight:500;opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap;z-index:999;max-width:calc(100vw - 40px);text-align:center}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<!-- USER SELECT -->
+<div class="screen active" id="screen-users">
+  <div class="app-logo">🌱 自己投資ゲーム</div>
+  <div class="app-tagline">だれがやる？</div>
+  <div class="user-grid" id="user-grid"></div>
+  <button class="add-user-btn" onclick="openAddUser()">＋ 新しいユーザーを追加</button>
+</div>
+
+<!-- MAIN APP -->
+<div class="screen" id="screen-app">
+  <div class="header">
+    <div class="header-row">
+      <div class="header-avatar" id="hdr-avatar"></div>
+      <div class="header-name" id="hdr-name"></div>
+      <div class="header-date" id="hdr-date"></div>
+      <button class="switch-btn" onclick="goUserSelect()">切替</button>
+    </div>
+  </div>
+
+  <!-- HOME -->
+  <div class="page active" id="page-home">
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-lbl">今週のポイント</div>
+        <div class="stat-val" id="week-pts">0</div>
+        <div class="stat-unit">pt（ボーナス後）</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-lbl">蓄積ポイント</div>
+        <div class="stat-val" id="total-pts">0</div>
+        <div class="stat-unit">pt</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sec">週間連続ボーナス倍率</div>
+      <div class="bonus-levels" id="bonus-pips"></div>
+      <div class="bonus-footer">
+        <span class="bonus-footer-lbl">現在（<span id="streak-wks">0</span>週連続） 目標：週<span id="streak-goal-display">6</span>pt</span>
+        <span class="bonus-mult-val" id="cur-mult">×1.0</span>
+      </div>
+    </div>
+    <div class="sec">今日の活動をタップして記録</div>
+    <div class="act-grid" id="act-grid"></div>
+    <div class="card" style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-size:12px;color:var(--muted)">今週の必須項目</span>
+        <span style="font-size:13px;font-weight:700;color:var(--green)" id="mand-prog">0/0 達成</span>
+      </div>
+      <div class="mbar-wrap"><div class="mbar-fill" id="mbar" style="width:0%"></div></div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px">🔴 必須達成で+1pt、未達成でリセット時-1pt。🌟 7日連続で継続ボーナス+1pt。</div>
+    </div>
+    <button class="reset-btn" onclick="resetWeek()">📅 週をリセット（土曜日に押す）</button>
+  </div>
+
+  <!-- LOG -->
+  <div class="page" id="page-log">
+    <!-- View toggle -->
+    <div style="display:flex;gap:6px;margin-bottom:12px">
+      <button class="cal-view-btn active" id="vbtn-month" onclick="setCalView('month',this)">月</button>
+      <button class="cal-view-btn" id="vbtn-week" onclick="setCalView('week',this)">週</button>
+      <div style="flex:1"></div>
+      <button class="cal-nav-btn" onclick="calNav(-1)">‹</button>
+      <span id="cal-title" style="font-size:13px;font-weight:500;color:var(--text);line-height:32px;min-width:90px;text-align:center"></span>
+      <button class="cal-nav-btn" onclick="calNav(1)">›</button>
+    </div>
+    <!-- Weekly points summary -->
+    <div class="card" id="cal-week-summary" style="margin-bottom:12px;display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span class="sec" style="margin:0">週間ポイント</span>
+        <span style="font-size:11px;color:var(--muted)" id="cal-week-range"></span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <div style="text-align:center">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:2px">獲得pt</div>
+          <div style="font-size:22px;font-weight:700;color:var(--green)" id="cal-week-pts">0</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:2px">合計時間</div>
+          <div style="font-size:22px;font-weight:700" id="cal-week-mins">0</div>
+          <div style="font-size:11px;color:var(--muted)">分</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:2px">記録回数</div>
+          <div style="font-size:22px;font-weight:700" id="cal-week-count">0</div>
+          <div style="font-size:11px;color:var(--muted)">回</div>
+        </div>
+      </div>
+    </div>
+    <!-- Calendar grid -->
+    <div id="cal-grid" style="margin-bottom:14px"></div>
+    <!-- Activity legend -->
+    <div id="cal-legend" style="margin-bottom:12px"></div>
+    <!-- Day detail -->
+    <div id="cal-detail"></div>
+  </div>
+
+  <!-- REWARD -->
+  <div class="page" id="page-reward">
+    <!-- Points summary -->
+    <div class="stats-row" style="margin-bottom:12px">
+      <div class="stat-card">
+        <div class="stat-lbl">今週のポイント</div>
+        <div class="stat-val" id="reward-week-pts">0</div>
+        <div class="stat-unit">pt（ボーナス後）</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-lbl">蓄積ポイント</div>
+        <div class="stat-val" id="reward-acc-pts">0</div>
+        <div class="stat-unit">pt</div>
+      </div>
+    </div>
+    <div class="sec">今週のポイントで使える選択権</div>
+    <div id="reward-list"></div>
+    <div class="sec" style="margin-top:4px">使用履歴</div>
+    <div id="reward-history-list"></div>
+    <div class="sec" style="margin-top:8px">累計ポイント交換リスト</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">蓄積ポイントを使って大きな特典と交換できます。</div>
+    <div id="acc-reward-list"></div>
+    <button class="add-act-btn" onclick="openAccRewardEdit(null)" style="margin-top:4px">＋ 累計特典を追加</button>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="page" id="page-settings">
+    <div class="sec">活動の編集</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">トグル＝必須/任意の切替。各活動の目標（回数・時間）も編集できます。</div>
+    <div id="settings-acts"></div>
+    <button class="add-act-btn" onclick="openActModal()">＋ 活動を追加</button>
+    <div class="danger-zone" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+      <div class="sec" style="margin-bottom:8px">週間ボーナス倍率の条件</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <span style="font-size:13px;color:var(--muted)">週に</span>
+        <input id="streak-goal-input" type="number" min="1" max="50" style="width:64px;padding:9px;border:1px solid var(--border);border-radius:var(--rs);font-size:15px;font-weight:500;text-align:center;background:var(--bg)">
+        <span style="font-size:13px;color:var(--muted)">pt以上獲得で倍率アップ</span>
+        <button onclick="saveStreakGoal()" style="padding:8px 14px;background:var(--green);color:#fff;border:none;border-radius:var(--rs);font-family:'Noto Sans JP',sans-serif;font-size:13px;cursor:pointer">保存</button>
+      </div>
+    </div>
+    <div class="danger-zone">
+      <div class="sec" style="margin-bottom:8px">ユーザー管理</div>
+      <button class="danger-btn" onclick="confirmDeleteUser()">このユーザーを削除する</button>
+    </div>
+  </div>
+
+  <nav class="bottom-nav">
+    <button class="nav-btn active" onclick="showPage('home',this)"><span class="ni">🏠</span>ホーム</button>
+    <button class="nav-btn" onclick="showPage('log',this)"><span class="ni">📋</span>記録</button>
+    <button class="nav-btn" onclick="showPage('reward',this)"><span class="ni">🎁</span>ご褒美</button>
+    <button class="nav-btn" onclick="showPage('settings',this)"><span class="ni">⚙️</span>設定</button>
+  </nav>
+</div>
+
+<!-- USER MODAL -->
+<div class="modal-overlay" id="user-modal">
+  <div class="modal">
+    <div class="modal-title" id="user-modal-title">ユーザーを追加</div>
+    <div class="field"><label>名前</label><input id="um-name" type="text" placeholder="例：たろう"></div>
+    <div class="field-row">
+      <div class="field"><label>アイコン（絵文字）</label><input id="um-emoji" type="text" placeholder="🧒" maxlength="2" style="text-align:center;font-size:20px"></div>
+      <div class="field"><label>テーマカラー</label>
+        <select id="um-color">
+          <option value="green">緑</option><option value="blue">青</option>
+          <option value="coral">オレンジ</option><option value="amber">黄色</option>
+          <option value="purple">紫</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('user-modal')">キャンセル</button>
+      <button class="btn-primary" onclick="saveUser()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ACT MODAL -->
+<div class="modal-overlay" id="act-modal">
+  <div class="modal">
+    <div class="modal-title" id="act-modal-title">活動を追加</div>
+    <div class="field-row">
+      <div class="field" style="flex:0 0 64px"><label>絵文字</label><input id="am-emoji" type="text" placeholder="📚" maxlength="2" style="text-align:center;font-size:20px"></div>
+      <div class="field"><label>活動名</label><input id="am-name" type="text" placeholder="例：日本語"></div>
+    </div>
+    <div class="goal-section" style="margin-bottom:13px">
+      <div class="sec" style="margin-bottom:8px">追加ポイント設定（必須達成後・週の累計時間で判定）</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px">週の累計時間が段階に達した瞬間にポイント加算。セッションをまたいでOK。</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+        <span style="font-size:12px;color:var(--muted);width:80px;flex-shrink:0">段階1（分〜）</span>
+        <input id="am-t1-mins" type="number" min="0" max="600" value="15" placeholder="累計分" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:var(--rs);font-size:14px;background:var(--bg)">
+        <span style="font-size:12px;color:var(--muted)">分で</span>
+        <input id="am-t1-pts" type="number" min="1" max="10" value="1" style="width:52px;padding:8px;border:1px solid var(--border);border-radius:var(--rs);font-size:14px;background:var(--bg)">
+        <span style="font-size:12px;color:var(--muted)">pt</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+        <span style="font-size:12px;color:var(--muted);width:80px;flex-shrink:0">段階2（分〜）</span>
+        <input id="am-t2-mins" type="number" min="0" max="600" value="30" placeholder="0=なし" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:var(--rs);font-size:14px;background:var(--bg)">
+        <span style="font-size:12px;color:var(--muted)">分で</span>
+        <input id="am-t2-pts" type="number" min="1" max="10" value="2" style="width:52px;padding:8px;border:1px solid var(--border);border-radius:var(--rs);font-size:14px;background:var(--bg)">
+        <span style="font-size:12px;color:var(--muted)">pt</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+        <span style="font-size:12px;color:var(--muted);width:80px;flex-shrink:0">段階3（分〜）</span>
+        <input id="am-t3-mins" type="number" min="0" max="600" value="0" placeholder="0=なし" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:var(--rs);font-size:14px;background:var(--bg)">
+        <span style="font-size:12px;color:var(--muted)">分で</span>
+        <input id="am-t3-pts" type="number" min="1" max="10" value="3" style="width:52px;padding:8px;border:1px solid var(--border);border-radius:var(--rs);font-size:14px;background:var(--bg)">
+        <span style="font-size:12px;color:var(--muted)">pt</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span style="font-size:12px;color:var(--muted);width:80px;flex-shrink:0">1日の上限</span>
+        <input id="am-sessioncap" type="number" min="1" max="10" value="1" style="width:52px;padding:8px;border:1px solid var(--border);border-radius:var(--rs);font-size:14px;background:var(--bg)">
+        <span style="font-size:12px;color:var(--muted)">pt/セッション</span>
+      </div>
+    </div>
+
+    <div class="sec" style="margin-bottom:6px">週間目標の設定方法</div>
+    <div class="goal-type-btns">
+      <button class="gtb" id="gtb-both" onclick="setGoalType('both')">回数＋時間（両方）</button>
+      <button class="gtb" id="gtb-count" onclick="setGoalType('count')">回数のみ</button>
+      <button class="gtb" id="gtb-time" onclick="setGoalType('time')">時間のみ</button>
+    </div>
+
+    <div class="goal-section" id="goal-count-section">
+      <div class="sec">目標回数（週）</div>
+      <div class="field" style="margin-bottom:0"><input id="am-goal-count" type="number" min="1" max="30" value="2" placeholder="例：2"></div>
+    </div>
+    <div class="goal-section" id="goal-time-section">
+      <div class="sec">目標合計時間（週・分）</div>
+      <div class="field" style="margin-bottom:0"><input id="am-goal-mins" type="number" min="5" max="600" value="40" placeholder="例：40"></div>
+    </div>
+
+    <div class="field">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input id="am-mandatory" type="checkbox" style="width:auto;accent-color:var(--green)">
+        必須項目にする
+      </label>
+    </div>
+    <div class="field">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input id="am-dailybonus" type="checkbox" style="width:auto;accent-color:var(--amber)">
+        毎日継続ボーナスの対象にする（週7日記録で＋1pt）
+      </label>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('act-modal')">キャンセル</button>
+      <button class="btn-primary" onclick="saveAct()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- TIME PICKER MODAL -->
+<div class="modal-overlay" id="time-modal">
+  <div class="modal">
+    <div class="modal-title" id="time-modal-title">活動を記録</div>
+    <div class="field" style="margin-bottom:10px">
+      <label>いつやりましたか？</label>
+      <div class="date-btn-row" id="date-btn-row"></div>
+    </div>
+    <div class="field" style="margin-bottom:6px"><label>何分やりましたか？</label></div>
+    <div class="time-grid" id="time-grid"></div>
+    <div class="time-custom-row">
+      <input id="time-custom" type="number" min="1" max="300" placeholder="その他（分）" oninput="selectCustomTime(this.value)">
+      <span style="font-size:14px;color:var(--muted)">分</span>
+    </div>
+    <div class="modal-btns" style="margin-top:14px">
+      <button class="btn-cancel" onclick="closeModal('time-modal')">キャンセル</button>
+      <button class="btn-primary" onclick="confirmTime()">記録する</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ACC REWARD EDIT MODAL -->
+<div class="modal-overlay" id="acc-reward-edit-modal">
+  <div class="modal">
+    <div class="modal-title">累計特典を編集</div>
+    <div class="field"><label>名前</label><input id="are-name" type="text" placeholder="例：5,000円分のお買い物"></div>
+    <div class="field"><label>必要な蓄積ポイント</label><input id="are-cost" type="number" min="1" max="9999"></div>
+    <div class="field"><label>内容・例</label><input id="are-examples" type="text" placeholder="例：Amazon・本・ゲームなど"></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('acc-reward-edit-modal')">キャンセル</button>
+      <button class="btn-primary" onclick="saveAccRewardEdit()">保存</button>
+    </div>
+  </div>
+</div>
+<!-- REWARD EDIT MODAL -->
+<div class="modal-overlay" id="reward-edit-modal">
+  <div class="modal">
+    <div class="modal-title">選択権を編集</div>
+    <div class="field"><label>名前</label><input id="re-name" type="text"></div>
+    <div class="field"><label>必要ポイント</label><input id="re-cost" type="number" min="1" max="50"></div>
+    <div class="field"><label>内容・例</label><input id="re-examples" type="text" placeholder="例：夕食のメニューを選ぶ"></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('reward-edit-modal')">キャンセル</button>
+      <button class="btn-primary" onclick="saveRewardEdit()">保存</button>
+    </div>
+  </div>
+</div>
+<!-- LOG EDIT MODAL -->
+<div class="modal-overlay" id="log-edit-modal">
+  <div class="modal">
+    <div class="modal-title">記録を編集</div>
+    <div class="field">
+      <label>日付</label>
+      <div class="date-btn-row" id="edit-date-row"></div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>時間（分）</label>
+        <input id="edit-mins" type="number" min="1" max="600">
+      </div>
+      <div class="field">
+        <label>回数</label>
+        <input id="edit-count" type="number" min="1" max="99" value="1">
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" style="color:var(--coral-d);border-color:#fca5a5" onclick="deleteLog()">削除</button>
+      <button class="btn-cancel" onclick="closeModal('log-edit-modal')">キャンセル</button>
+      <button class="btn-primary" onclick="saveLogEdit()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const BONUS=[{mult:1.0},{mult:1.1},{mult:1.2},{mult:1.3},{mult:1.4},{mult:1.5}];
+const COLORS={green:['#1D9E75','#E1F5EE','#0F6E56'],blue:['#378ADD','#E6F1FB','#185FA5'],coral:['#D85A30','#FAECE7','#993C1D'],amber:['#EF9F27','#FAEEDA','#854F0B'],purple:['#7C3AED','#EDE9FE','#5B21B6']};
+const DEF_ACTS=[
+  {id:'cn_rad',name:'中国語ラジオ',emoji:'🇨🇳',pts:1,mandatory:true,goalType:'both',goalCount:2,goalMins:40,ptTiers:[{mins:20,pts:1},{mins:40,pts:2}],sessionCap:1,dailyBonus:true},
+  {id:'cn_mami',name:'中国語マミー',emoji:'📖',pts:1,mandatory:true,goalType:'both',goalCount:3,goalMins:30,ptTiers:[{mins:10,pts:1},{mins:30,pts:2}],sessionCap:1,dailyBonus:true},
+  {id:'jp',name:'日本語',emoji:'📚',pts:1,mandatory:true,goalType:'both',goalCount:3,goalMins:90,ptTiers:[{mins:30,pts:1},{mins:60,pts:2}],sessionCap:1,dailyBonus:true},
+  {id:'viola',name:'ビオラ',emoji:'🎻',pts:1,mandatory:true,goalType:'both',goalCount:3,goalMins:90,ptTiers:[{mins:30,pts:1},{mins:90,pts:2}],sessionCap:1,dailyBonus:true},
+  {id:'sax',name:'サックス',emoji:'🎷',pts:1,mandatory:true,goalType:'both',goalCount:1,goalMins:30,ptTiers:[{mins:30,pts:1},{mins:60,pts:2}],sessionCap:1,dailyBonus:true},
+  {id:'run',name:'運動',emoji:'🏃',pts:1,mandatory:true,goalType:'both',goalCount:3,goalMins:45,ptTiers:[{mins:15,pts:1},{mins:45,pts:2}],sessionCap:1,dailyBonus:true},
+  {id:'basketball',name:'リストボール',emoji:'🏀',pts:1,mandatory:true,goalType:'both',goalCount:1,goalMins:60,ptTiers:[{mins:60,pts:1},{mins:120,pts:2}],sessionCap:1,dailyBonus:true},
+  {id:'rockclimb',name:'ロッククライミング',emoji:'🧗',pts:1,mandatory:false,goalType:'count',goalCount:1,goalMins:0,ptTiers:[{mins:0,pts:1}],sessionCap:1,dailyBonus:false},
+];
+
+// TIME OPTIONS shown in picker (minutes)
+const TIME_OPTS=[5,10,15,20,30,45,60,90,120];
+
+const DEF_REWARDS=[
+  {id:'r0',name:'ちょっとした選択権',cost:1,badge:'sm',examples:'買い物に行ける'},
+  {id:'r1',name:'小さい選択権',cost:3,badge:'sm',examples:'夕食のメニューを選ぶ、音楽を選ぶ'},
+  {id:'r2',name:'中くらいの選択権',cost:5,badge:'md',examples:'自分のお家で何かを買う'},
+  {id:'r3',name:'大きい選択権',cost:8,badge:'lg',examples:'アニメ1時間鑑賞、ゲーム1時間、Hotpot食べに行く'},
+];
+const DEF_ACC_REWARDS=[
+  {id:'ar1',name:'5,000円分のお買い物',cost:100,examples:'Amazon・本・ゲームなど'},
+  {id:'ar2',name:'特別なお出かけ',cost:50,examples:'映画・遊園地・レストランなど'},
+];
+let DB=loadDB();
+let editingUserId=null,editingActId=null;
+let pendingActId=null,selectedMinutes=null,selectedDateKey=null;
+let calView='month',calOffset=0,calSelectedDay=null;
+let editingLogIdx=null,editLogDateKey=null;
+let currentGoalType='both';
+
+function loadDB(){const d=localStorage.getItem('jiko_v4');return d?JSON.parse(d):{users:[]};}
+function saveDB(){localStorage.setItem('jiko_v4',JSON.stringify(DB));}
+function getUser(id){return DB.users.find(u=>u.id===id);}
+function cr(){const u=cu();if(!u.rewards)u.rewards=JSON.parse(JSON.stringify(DEF_REWARDS));return u.rewards;}
+function car(){const u=cu();if(!u.accRewards)u.accRewards=JSON.parse(JSON.stringify(DEF_ACC_REWARDS));return u.accRewards;}
+function ensureState(u){
+  if(!u.state)u.state={weekPts:0,totalPts:0,streak:0,weekSessions:{},logs:[]};
+  // weekSessions: {actId: {count:N, mins:N}}
+  return u.state;
+}
+function cu(){return getUser(DB.currentUserId);}
+function cs(){return ensureState(cu());}
+function ca(){return cu()?.activities||[];}
+function getBonus(u){const s=ensureState(u);return BONUS[Math.min(s.streak,BONUS.length-1)].mult;}
+
+// Check if mandatory goal is fully met for an activity
+// Returns 0-200 score (each axis capped at 100, avg>=100 means met)
+function mandatoryScore(act, sessions){
+  const s=sessions[act.id]||{count:0,mins:0};
+  if(act.goalType==='count'){
+    return Math.min(100,s.count/(act.goalCount||1)*100);
+  }
+  if(act.goalType==='time'){
+    return Math.min(100,s.mins/(act.goalMins||1)*100);
+  }
+  // both: weighted average, each capped at 100
+  const countPct=Math.min(100,s.count/(act.goalCount||1)*100);
+  const minsPct=Math.min(100,s.mins/(act.goalMins||1)*100);
+  return (countPct+minsPct)/2;
+}
+function isMandatoryMet(act, sessions){
+  return mandatoryScore(act,sessions)>=100;
+}
+
+/* ---- USER SELECT ---- */
+function renderUserSelect(){
+  const g=document.getElementById('user-grid');g.innerHTML='';
+  DB.users.forEach(u=>{
+    const s=ensureState(u);const[,cl]=COLORS[u.color||'green'];
+    const d=document.createElement('div');d.className='user-card';
+    d.style.borderColor=cl;
+    d.innerHTML=`<button class="user-edit-btn" onclick="event.stopPropagation();openEditUser('${u.id}')">✏️</button>
+      <div class="user-avatar" style="background:${cl}">${u.emoji||'🧒'}</div>
+      <div class="user-name">${u.name}</div>
+      <div class="user-streak">${s.streak>0?'🔥'+s.streak+'週連続':'まだ0週'}</div>`;
+    d.onclick=()=>enterApp(u.id);g.appendChild(d);
+  });
+}
+function enterApp(userId){
+  DB.currentUserId=userId;saveDB();
+  const u=cu();const[c,cl,cd]=COLORS[u.color||'green'];
+  document.getElementById('hdr-avatar').textContent=u.emoji||'🧒';
+  document.getElementById('hdr-avatar').style.background=cl;
+  document.getElementById('hdr-name').textContent=u.name;
+  document.getElementById('hdr-name').style.color=cd;
+  document.getElementById('hdr-date').textContent=new Date().toLocaleDateString('ja-JP',{month:'short',day:'numeric',weekday:'short'});
+  showScreen('screen-app');showPage('home',document.querySelector('.nav-btn'));render();
+}
+function goUserSelect(){showScreen('screen-users');renderUserSelect();}
+
+/* ---- USER MODAL ---- */
+function openAddUser(){
+  editingUserId=null;
+  document.getElementById('user-modal-title').textContent='ユーザーを追加';
+  document.getElementById('um-name').value='';
+  document.getElementById('um-emoji').value='';
+  document.getElementById('um-color').value='green';
+  openModal('user-modal');
+}
+function openEditUser(id){
+  editingUserId=id;const u=getUser(id);
+  document.getElementById('user-modal-title').textContent='ユーザーを編集';
+  document.getElementById('um-name').value=u.name;
+  document.getElementById('um-emoji').value=u.emoji||'';
+  document.getElementById('um-color').value=u.color||'green';
+  openModal('user-modal');
+}
+function saveUser(){
+  const name=document.getElementById('um-name').value.trim();
+  if(!name){alert('名前を入力してください');return;}
+  const emoji=document.getElementById('um-emoji').value||'🧒';
+  const color=document.getElementById('um-color').value;
+  if(editingUserId){const u=getUser(editingUserId);u.name=name;u.emoji=emoji;u.color=color;}
+  else DB.users.push({id:'u'+Date.now(),name,emoji,color,activities:JSON.parse(JSON.stringify(DEF_ACTS)),streakGoal:6,state:{weekPts:0,totalPts:0,streak:0,weekSessions:{},logs:[]}});
+  saveDB();closeModal('user-modal');renderUserSelect();toast('保存しました！');
+}
+
+/* ---- GOAL TYPE ---- */
+function setGoalType(t){
+  currentGoalType=t;
+  ['both','count','time'].forEach(x=>document.getElementById('gtb-'+x).classList.toggle('active',x===t));
+  const ts=document.getElementById('goal-time-section');if(ts)ts.style.display=(t==='count')?'none':'block';
+  const cs=document.getElementById('goal-count-section');if(cs)cs.style.display=(t==='time')?'none':'block';
+}
+
+/* ---- ACT MODAL ---- */
+function openActModal(id){
+  editingActId=id||null;
+  if(id){
+    const a=ca().find(x=>x.id===id);
+    document.getElementById('act-modal-title').textContent='活動を編集';
+    document.getElementById('am-emoji').value=a.emoji||'📌';
+    document.getElementById('am-name').value=a.name;
+    const tiers=a.ptTiers||[];
+    document.getElementById('am-t1-mins').value=tiers[0]?tiers[0].mins:15;
+    document.getElementById('am-t1-pts').value=tiers[0]?tiers[0].pts:1;
+    document.getElementById('am-t2-mins').value=tiers[1]?tiers[1].mins:0;
+    document.getElementById('am-t2-pts').value=tiers[1]?tiers[1].pts:2;
+    document.getElementById('am-t3-mins').value=tiers[2]?tiers[2].mins:0;
+    document.getElementById('am-t3-pts').value=tiers[2]?tiers[2].pts:3;
+    document.getElementById('am-sessioncap').value=a.sessionCap||1;
+    document.getElementById('am-goal-count').value=a.goalCount||1;
+    document.getElementById('am-goal-mins').value=a.goalMins||0;
+    document.getElementById('am-mandatory').checked=a.mandatory;
+    document.getElementById('am-dailybonus').checked=!!a.dailyBonus;
+    setGoalType(a.goalType||'both');
+  } else {
+    document.getElementById('act-modal-title').textContent='活動を追加';
+    document.getElementById('am-emoji').value='';document.getElementById('am-name').value='';
+    document.getElementById('am-t1-mins').value='15';document.getElementById('am-t1-pts').value='1';
+    document.getElementById('am-t2-mins').value='30';document.getElementById('am-t2-pts').value='2';
+    document.getElementById('am-t3-mins').value='0';document.getElementById('am-t3-pts').value='3';
+    document.getElementById('am-sessioncap').value='1';
+    document.getElementById('am-goal-count').value='2';
+    document.getElementById('am-goal-mins').value='40';document.getElementById('am-mandatory').checked=false;
+    setGoalType('both');
+  }
+  openModal('act-modal');
+}
+function saveAct(){
+  const name=document.getElementById('am-name').value.trim();
+  if(!name){alert('活動名を入力してください');return;}
+  const emoji=document.getElementById('am-emoji').value||'📌';
+  const t1m=parseInt(document.getElementById('am-t1-mins').value)||0;
+  const t1p=parseInt(document.getElementById('am-t1-pts').value)||1;
+  const t2m=parseInt(document.getElementById('am-t2-mins').value)||0;
+  const t2p=parseInt(document.getElementById('am-t2-pts').value)||2;
+  const t3m=parseInt(document.getElementById('am-t3-mins').value)||0;
+  const t3p=parseInt(document.getElementById('am-t3-pts').value)||3;
+  const ptTiers=[];
+  if(t1m>0)ptTiers.push({mins:t1m,pts:t1p});
+  if(t2m>0)ptTiers.push({mins:t2m,pts:t2p});
+  if(t3m>0)ptTiers.push({mins:t3m,pts:t3p});
+  ptTiers.sort((a,b)=>a.mins-b.mins);
+  const sessionCap=Math.max(1,parseInt(document.getElementById('am-sessioncap').value)||1);
+  const goalCount=Math.max(1,parseInt(document.getElementById('am-goal-count').value)||1);
+  const goalMins=Math.max(0,parseInt(document.getElementById('am-goal-mins').value)||0);
+  const mandatory=document.getElementById('am-mandatory').checked;
+  const dailyBonus=document.getElementById('am-dailybonus').checked;
+  const acts=cu().activities;
+  if(editingActId){const a=acts.find(x=>x.id===editingActId);if(a)Object.assign(a,{emoji,name,ptTiers,sessionCap,goalType:currentGoalType,goalCount,goalMins,mandatory,dailyBonus});}
+  else acts.push({id:'a'+Date.now(),emoji,name,ptTiers,sessionCap,goalType:currentGoalType,goalCount,goalMins,mandatory,dailyBonus});
+  saveDB();closeModal('act-modal');renderSettings();render();toast('保存しました！');
+}
+function deleteAct(id){
+  if(!confirm('この活動を削除しますか？'))return;
+  cu().activities=cu().activities.filter(a=>a.id!==id);
+  saveDB();renderSettings();render();
+}
+function toggleMandatory(id){
+  const a=ca().find(x=>x.id===id);if(a){a.mandatory=!a.mandatory;saveDB();renderSettings();}
+}
+function saveStreakGoal(){
+  const val=parseInt(document.getElementById('streak-goal-input').value)||6;
+  cu().streakGoal=Math.max(1,val);
+  saveDB();toast('目標を'+cu().streakGoal+'ptに設定しました！');
+  render();
+}
+function confirmDeleteUser(){
+  if(!confirm(cu().name+'のデータをすべて削除しますか？'))return;
+  DB.users=DB.users.filter(u=>u.id!==DB.currentUserId);DB.currentUserId=null;saveDB();goUserSelect();
+}
+function toggleSkip(actId){
+  const S=cs();
+  if(!S.weekSessions)S.weekSessions={};
+  if(!S.weekSessions[actId])S.weekSessions[actId]={count:0,mins:0,mandatoryMet:false,skipped:false};
+  S.weekSessions[actId].skipped=!S.weekSessions[actId].skipped;
+  saveDB();renderSettings();render();
+  const skipped=S.weekSessions[actId].skipped;
+  toast(skipped?'この週はスキップします（ペナルティなし）':'スキップを解除しました');
+}
+
+/* ---- TIME PICKER ---- */
+function dateKey(d){return d.toISOString().slice(0,10);}
+function todayKey(){return dateKey(new Date());}
+function labelForKey(k){
+  const today=todayKey();
+  const d=new Date(k+'T00:00:00');
+  const diff=Math.round((new Date(today)-new Date(k))/86400000);
+  if(diff===0)return'今日';
+  if(diff===1)return'昨日';
+  if(diff===2)return'一昨日';
+  return d.toLocaleDateString('ja-JP',{month:'short',day:'numeric',weekday:'short'});
+}
+function openTimePicker(actId){
+  pendingActId=actId;selectedMinutes=null;selectedDateKey=todayKey();
+  const act=ca().find(x=>x.id===actId);
+  document.getElementById('time-modal-title').textContent=(act.emoji||'')+' '+act.name;
+  document.getElementById('time-custom').value='';
+  // date buttons: today + past 6 days
+  const today=new Date();
+  const dateRow=document.getElementById('date-btn-row');
+  dateRow.innerHTML=Array.from({length:7},(_,i)=>{
+    const d=new Date(today);d.setDate(d.getDate()-i);
+    const k=dateKey(d);
+    return`<button class="date-btn${i===0?' sel':''}" data-dk="${k}" onclick="selectDate('${k}')">${labelForKey(k)}</button>`;
+  }).join('');
+  // time buttons
+  const grid=document.getElementById('time-grid');
+  grid.innerHTML=TIME_OPTS.map(m=>`<button class="time-btn" data-mins="${m}" onclick="selectTime(${m})">${m}分</button>`).join('');
+  openModal('time-modal');
+}
+function selectDate(k){
+  selectedDateKey=k;
+  document.querySelectorAll('.date-btn').forEach(b=>b.classList.toggle('sel',b.dataset.dk===k));
+}
+function selectTime(mins){
+  selectedMinutes=mins;
+  document.querySelectorAll('.time-btn').forEach(b=>b.classList.toggle('selected',parseInt(b.dataset.mins)===mins));
+  document.getElementById('time-custom').value='';
+}
+function selectCustomTime(val){
+  const m=parseInt(val);if(!m||m<1)return;
+  selectedMinutes=m;
+  document.querySelectorAll('.time-btn').forEach(b=>b.classList.remove('selected'));
+}
+function confirmTime(){
+  if(!selectedMinutes){toast('時間を選んでください');return;}
+  closeModal('time-modal');
+  logAct(pendingActId,selectedMinutes,selectedDateKey);
+}
+
+/* ---- ACTIONS ---- */
+// Calculate tier pts earned from cumulative mins (returns total pts level for that total)
+function calcTierPts(tiers,totalMins){
+  if(!tiers||!tiers.length)return 0;
+  let pts=0;
+  for(const t of tiers){if(totalMins>=t.mins)pts=t.pts;}
+  return pts;
+}
+
+function logAct(id,mins,dk){
+  const S=cs();const a=ca().find(x=>x.id===id);if(!a)return;
+  const mult=getBonus(cu());
+  if(!S.weekSessions)S.weekSessions={};
+  if(!S.weekSessions[id])S.weekSessions[id]={count:0,mins:0,mandatoryMet:false,bonusPtsEarned:0,dailyPts:{},activeDays:[]};
+  const ses=S.weekSessions[id];
+  const wasMetBefore=ses.mandatoryMet||isMandatoryMet(a,S.weekSessions);
+  const minsBeforeSession=ses.mins;
+  ses.count++;ses.mins+=mins;
+  const isMetNow=isMandatoryMet(a,S.weekSessions);
+  let earned=0;
+  const tiers=a.ptTiers||[];
+  const cap=a.sessionCap||1;
+
+  if(a.mandatory){
+    if(!wasMetBefore&&isMetNow){
+      // 必須達成した瞬間: +1pt（ボーナスは別途）
+      earned=1;ses.mandatoryMet=true;
+      // Also check if this session also crosses a bonus tier
+      const tierNow=calcTierPts(tiers,ses.mins);
+      const tierBefore=calcTierPts(tiers,minsBeforeSession);
+      const tierGain=Math.min(tierNow-tierBefore,cap);
+      // don't double-count: mandatory +1pt is the main reward; tier bonus starts from next session
+    } else if(wasMetBefore){
+      // 必須達成後: 週累計でtier判定
+      const tierNow=calcTierPts(tiers,ses.mins);
+      const tierBefore=ses.bonusPtsEarned||0;
+      const tierGain=tierNow-tierBefore;
+      if(tierGain>0){
+        earned=Math.min(tierGain,cap);
+        ses.bonusPtsEarned=(ses.bonusPtsEarned||0)+earned;
+      }
+    }
+    // 未達成中: 0pt
+  } else {
+    // 任意項目: 週累計でtier判定
+    const tierNow=calcTierPts(tiers,ses.mins);
+    const tierBefore=ses.bonusPtsEarned||0;
+    const tierGain=tierNow-tierBefore;
+    if(tierGain>0){
+      earned=Math.min(tierGain,cap);
+      ses.bonusPtsEarned=(ses.bonusPtsEarned||0)+earned;
+    }
+  }
+
+  // Apply daily cap for bonus pts (not for mandatory +1pt unlock)
+  const dayKey=dk||todayKey();
+  if(!ses.dailyPts)ses.dailyPts={};
+  const dayPtsSoFar=ses.dailyPts[dayKey]||0;
+  // mandatory unlock (+1pt) is exempt from daily cap
+  const isMandatoryUnlock=(!wasMetBefore&&isMetNow);
+  if(!isMandatoryUnlock&&earned>0){
+    const allowed=Math.max(0,cap-dayPtsSoFar);
+    earned=Math.min(earned,allowed);
+  }
+  if(earned>0&&!isMandatoryUnlock){
+    ses.dailyPts[dayKey]=(ses.dailyPts[dayKey]||0)+earned;
+  }
+  // Track active days for daily bonus
+  if(!ses.activeDays)ses.activeDays=[];
+  if(!ses.activeDays.includes(dayKey))ses.activeDays.push(dayKey);
+
+  S.weekPts+=earned;
+  S.totalPts+=earned*mult;
+  S.logs.push({actId:id,name:a.name,emoji:a.emoji||'📌',pts:earned,mins,dk:dayKey,mandatory:a.mandatory,metAt:isMandatoryUnlock});
+  saveDB();render();
+  let ptMsg=earned>0?` ＋${earned}pt`:'（0pt）';
+  if(!isMandatoryUnlock&&earned===0&&(ses.dailyPts[dayKey]||0)>=cap) ptMsg=`（本日上限${cap}ptに達成）`;
+  const metMsg=isMandatoryUnlock?' 🎯 必須達成！+1pt':'';
+  toast((a.emoji||'📌')+' '+mins+'分'+ptMsg+metMsg);
+}
+function useReward(rewardId){
+  const S=cs();const mult=getBonus(cu());
+  const r=cr().find(x=>x.id===rewardId);if(!r)return;
+  if(S.weekPts*mult<r.cost)return;
+  S.weekPts-=r.cost/mult;if(S.weekPts<0)S.weekPts=0;
+  if(!S.rewardHistory)S.rewardHistory=[];
+  const now=new Date();
+  S.rewardHistory.push({
+    id:'rh'+Date.now()+'_'+Math.random().toString(36).slice(2,7),rewardId,name:r.name,cost:r.cost,
+    time:now.toLocaleDateString('ja-JP',{month:'short',day:'numeric'})+' '+now.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'})
+  });
+  saveDB();render();renderRewardPage();toast('「'+r.name+'」を使いました！🎉');
+}
+function undoReward(histId){
+  const S=cs();const mult=getBonus(cu());
+  if(!S.rewardHistory)return;
+  const idx=S.rewardHistory.findIndex(h=>h.id===histId);
+  if(idx<0)return;
+  const h=S.rewardHistory[idx];
+  if(!confirm('「'+h.name+'」の使用を取り消しますか？ +'+h.cost+'ptが戻ります。'))return;
+  S.weekPts+=h.cost/mult;
+  S.rewardHistory.splice(idx,1);
+  saveDB();render();toast(h.cost+'ptを返還しました');
+}
+window.undoRewardByIndex=function undoRewardByIndex(idx){
+  const S=cs();const mult=getBonus(cu());
+  if(!S.rewardHistory||idx<0||idx>=S.rewardHistory.length)return;
+  const h=S.rewardHistory[idx];
+  if(!confirm('「'+h.name+'」の使用を取り消しますか？ +'+h.cost+'ptが戻ります。'))return;
+  S.weekPts+=h.cost/mult;
+  S.rewardHistory.splice(idx,1);
+  saveDB();render();toast(h.cost+'ptを返還しました');
+};
+function resetWeek(){
+  if(!confirm('週をリセットします（土曜日用）。\nペナルティの計算をして次の週に進みます。'))return;
+  const S=cs();const acts=ca();
+  const mult=getBonus(cu());
+  const ws=S.weekSessions||{};
+  // 必須項目のうちスキップされていないものだけチェック
+  // ペナルティ: 必須未達成1項目につき-1pt
+  const mActs=acts.filter(a=>a.mandatory&&!((ws[a.id]||{}).skipped));
+  const mDone=mActs.filter(a=>isMandatoryMet(a,ws)).length;
+  const mFailed=mActs.length-mDone;
+  let penalty=0;
+  if(mFailed>0){
+    penalty=mFailed;
+    S.totalPts=Math.max(0,S.totalPts-penalty*mult);
+  }
+  // 連続ボーナス倍率: 週Npt達成で判定
+  const streakGoal=cu().streakGoal||6;
+  const effectivePts=Math.round(S.weekPts*mult*10)/10;
+  if(effectivePts>=streakGoal){
+    S.streak++;
+    const penMsg=penalty>0?` / 必須未達成-${penalty}pt`:'';
+    toast(`🎉 週${streakGoal}pt達成！連続${S.streak}週目！${penMsg}`);
+  } else {
+    if(S.streak>0)S.streak=Math.max(0,S.streak-1);
+    const penMsg=penalty>0?` / 必須未達成-${penalty}pt`:'';
+    toast(`😅 週${streakGoal}pt未達成…連続ボーナスが下がりました${penMsg}`);
+  }
+  // Daily bonus: for each act with dailyBonus=true, check if all 7 days have a record
+  const acts2=ca();
+  let dailyBonusTotal=0;
+  acts2.forEach(a=>{
+    if(!a.dailyBonus)return;
+    const ses2=S.weekSessions[a.id];
+    if(!ses2||!ses2.activeDays)return;
+    const days=ses2.activeDays.slice().sort();
+    // 7日連続チェック
+    let maxStreak=1,cstreak=1;
+    for(let i=1;i<days.length;i++){
+      const prev=new Date(days[i-1]+'T00:00:00');
+      const curr=new Date(days[i]+'T00:00:00');
+      const diff=Math.round((curr-prev)/86400000);
+      if(diff===1){cstreak++;maxStreak=Math.max(maxStreak,cstreak);}
+      else if(diff>1){cstreak=1;}
+    }
+    if(days.length===1)maxStreak=1;
+    if(maxStreak>=7){dailyBonusTotal++;}
+  });
+  if(dailyBonusTotal>0){
+    S.totalPts+=dailyBonusTotal*mult;
+    setTimeout(()=>toast('🌟 毎日継続ボーナス！'+dailyBonusTotal+'項目×+1pt！'),400);
+  }
+  S.weekSessions={};S.weekPts=0;
+  saveDB();setTimeout(render,300);
+}
+
+/* ---- RENDER ---- */
+function doUndoReward(idx){
+  const u=DB.users.find(function(u){return u.id===DB.currentUserId;});
+  if(!u||!u.state||!u.state.rewardHistory)return;
+  const hist=u.state.rewardHistory;
+  if(idx<0||idx>=hist.length)return;
+  const h=hist[idx];
+  if(!confirm('「'+h.name+'」の使用を取り消しますか？ +'+h.cost+'ptが今週のポイントに戻ります。'))return;
+  const mult=getBonus(u);
+  u.state.weekPts+=h.cost/mult;
+  hist.splice(idx,1);
+  saveDB();
+  render();
+  renderRewardHistory();
+  toast(h.cost+'ptを返還しました');
+}
+
+function renderRewardHistory(){
+  if(!DB.currentUserId) return;
+  var S=DB.users.find(function(u){return u.id===DB.currentUserId;}).state;
+  if(!S) return;
+  var histEl=document.getElementById('reward-history-list');
+  if(!histEl) return;
+  var hist=S.rewardHistory||[];
+  if(!hist.length){
+    histEl.innerHTML='<div style="font-size:13px;color:#777;padding:8px 0">まだ使用履歴がありません</div>';
+    return;
+  }
+  var html='';
+  for(var ri=hist.length-1;ri>=0;ri--){
+    var h=hist[ri];
+    html+='<div class="log-item" style="margin-bottom:8px">';
+    html+='<div class="log-em">🎁</div>';
+    html+='<div class="log-info">';
+    html+='<div class="log-name">'+h.name+'</div>';
+    html+='<div class="log-sub">'+h.time+'</div>';
+    html+='</div>';
+    html+='<div style="display:flex;align-items:center;gap:6px">';
+    html+='<div class="log-pts" style="color:#993C1D">-'+h.cost+'pt</div>';
+    html+='<button data-idx="'+ri+'" class="rh-undo-btn" style="background:#f5f5f0;border:1px solid #ccc;border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer;color:#555">取消</button>';
+    html+='</div>';
+    html+='</div>';
+  }
+  histEl.innerHTML=html;
+  var btns=histEl.getElementsByClassName('rh-undo-btn');
+  for(var bi=0;bi<btns.length;bi++){
+    btns[bi].addEventListener('click',function(e){
+      var idx=parseInt(e.currentTarget.getAttribute('data-idx'));
+      doUndoReward(idx);
+      renderRewardHistory();
+    });
+  }
+}
+
+function render(){
+  if(!DB.currentUserId)return;
+  const S=cs();const acts=ca();const mult=getBonus(cu());
+  const ws=S.weekSessions||{};
+
+  // stats
+  const eff=Math.round(S.weekPts*mult*10)/10;
+  document.getElementById('week-pts').textContent=eff%1===0?eff:eff.toFixed(1);
+  document.getElementById('total-pts').textContent=Math.round(S.totalPts);
+  const oldAcc=document.getElementById('acc-pts');if(oldAcc)oldAcc.textContent=Math.round(S.totalPts);
+
+  // bonus pips
+  document.getElementById('bonus-pips').innerHTML=BONUS.map((b,i)=>{
+    const done=S.streak>i,cur=S.streak===i;
+    return`<div class="bp"><div class="bp-circle ${done?'done':cur?'cur':''}">${b.mult.toFixed(1)}</div><div class="bp-lbl ${done||cur?'on':''}">${i===0?'初週':i+'週'}</div></div>`;
+  }).join('');
+  document.getElementById('streak-wks').textContent=S.streak;
+  document.getElementById('cur-mult').textContent='×'+mult.toFixed(1);
+  const sgd=document.getElementById('streak-goal-display');
+  if(sgd)sgd.textContent=cu().streakGoal||6;
+
+  // activity cards
+  document.getElementById('act-grid').innerHTML=acts.map(a=>{
+    const ses=ws[a.id]||{count:0,mins:0};
+    const met=isMandatoryMet(a,ws);
+    const partial=ses.count>0||ses.mins>0;
+    let cardCls=met?'done-full':partial?'done-partial':'';
+
+    // build progress bars
+    let progHtml='';
+    if(a.goalType==='both'){
+      // Combined bar: count (amber) + time (green), together show average achievement
+      const countPct=Math.min(100,Math.round(ses.count/(a.goalCount||1)*100));
+      const minsPct=Math.min(100,Math.round(ses.mins/(a.goalMins||1)*100));
+      const avgPct=Math.round((countPct+minsPct)/2);
+      const barColor=met?'var(--green)':'var(--amber)';
+      const aWidth=Math.round(countPct/2); // each axis = 50% of bar
+      const bWidth=Math.round(minsPct/2);
+      const pctColor=met?'var(--green-d)':avgPct>=60?'var(--amber-d)':'var(--muted)';
+      progHtml=`<div class="prog-combined-wrap">
+        <div class="prog-combined-track">
+          <div class="prog-combined-a" style="width:${aWidth}%;${met?'background:var(--green)':''}"></div>
+          <div class="prog-combined-b" style="width:${bWidth}%;${met?'background:#34D99A':''}"></div>
+        </div>
+        <div class="prog-combined-labels">
+          <span class="prog-combined-sub">${ses.count}回・${ses.mins}分</span>
+          <span class="prog-combined-pct" style="color:${pctColor}">${avgPct}%</span>
+        </div>
+      </div>`;
+    } else {
+      // Single axis: simple bar
+      progHtml='<div class="act-progress">';
+      if(a.goalType==='count'){
+        const pct=Math.min(100,Math.round(ses.count/(a.goalCount||1)*100));
+        const fillCls=met?'prog-fill-green':'prog-fill-amber';
+        progHtml+=`<div class="prog-row"><span class="prog-label">回数</span><div class="prog-track"><div class="${fillCls}" style="width:${pct}%"></div></div><span class="prog-val">${ses.count}/${a.goalCount}</span></div>`;
+      } else {
+        const pct=Math.min(100,Math.round(ses.mins/(a.goalMins||1)*100));
+        const fillCls=met?'prog-fill-green':'prog-fill-amber';
+        progHtml+=`<div class="prog-row"><span class="prog-label">時間</span><div class="prog-track"><div class="${fillCls}" style="width:${pct}%"></div></div><span class="prog-val">${ses.mins}/${a.goalMins}分</span></div>`;
+      }
+      progHtml+='</div>';
+    }
+
+    let badgeHtml='';
+    if(met) badgeHtml='<span class="act-badge green">✓ 達成</span>';
+    else if(partial) badgeHtml='<span class="act-badge amber">進行中</span>';
+    else badgeHtml=`<span class="act-badge gray">+${a.pts}pt/回</span>`;
+
+    const dotHtml=a.mandatory?`<div class="mdot ${met?'done':'mandatory'}"></div>`:'';
+
+    return`<button class="act-card ${cardCls}" onclick="openTimePicker('${a.id}')">
+      ${dotHtml}
+      <span class="act-emoji">${a.emoji||'📌'}</span>
+      <div class="act-name">${a.name}</div>
+      ${progHtml}
+      ${badgeHtml}
+    </button>`;
+  }).join('');
+
+  // mandatory bar
+  const mActs=acts.filter(a=>a.mandatory);
+  const mDone=mActs.filter(a=>isMandatoryMet(a,ws)).length;
+  document.getElementById('mand-prog').textContent=mDone+'/'+mActs.length+' 達成';
+  document.getElementById('mbar').style.width=(mActs.length>0?Math.round(mDone/mActs.length*100):0)+'%';
+
+  // reward list rendered by renderRewardPage()
+  // reward page rendered by renderRewardPage()
+
+  // reward history
+  // history rendered by renderRewardPage()
+
+  // acc reward list rendered by renderRewardPage()
+
+  // refresh calendar if visible
+  if(document.getElementById('page-log').classList.contains('active')){
+    renderCalendar();
+  }
+
+  renderSettings();
+}
+
+function renderSettings(){
+  if(!DB.currentUserId)return;
+  const ws=(cs().weekSessions)||{};
+  document.getElementById('settings-acts').innerHTML=ca().map(a=>{
+    const ses=ws[a.id]||{count:0,mins:0,skipped:false,mandatoryMet:false,activeDays:[]};
+    const tiers=a.ptTiers||[];
+    let goalDesc='';
+    if(a.goalType==='count') goalDesc=`週${a.goalCount}回`;
+    else if(a.goalType==='time') goalDesc=`週${a.goalMins}分`;
+    else goalDesc=`週${a.goalCount}回 ＋ ${a.goalMins}分`;
+    const met=isMandatoryMet(a,ws);
+    const skipped=!!ses.skipped;
+    const skipRow=a.mandatory?`
+      <div class="skip-row">
+        <span class="skip-lbl">${skipped?'⏭ この週はスキップ中（ペナルティなし）':'この週をスキップする'}</span>
+        <button class="skip-toggle ${skipped?'on':'off'}" onclick="toggleSkip('${a.id}')"></button>
+      </div>`:'';
+    return`<div class="settings-act-item">
+      <div class="sai-top">
+        <span class="sai-em">${a.emoji||'📌'}</span>
+        <span class="sai-name">${a.name} <span style="color:var(--green);font-size:11px">+${a.pts}pt/回</span></span>
+        <div class="sai-right">
+          <button class="mtoggle ${a.mandatory?'on':'off'}" onclick="toggleMandatory('${a.id}')"></button>
+          <button class="edit-btn-sm" onclick="openActModal('${a.id}')">編集</button>
+          <button class="del-btn-sm" onclick="deleteAct('${a.id}')">🗑</button>
+        </div>
+      </div>
+      <div class="sai-goals">
+        <span class="goal-pill active">🎯 ${goalDesc}</span>
+        <span class="goal-pill">今週: ${ses.count}回 / ${ses.mins}分</span>
+        ${tiers.length>0?`<span class="goal-pill">⚡ ${tiers.map(t=>t.mins+'分→'+t.pts+'pt').join(' / ')} (1日上限${a.sessionCap||1}pt)</span>`:''}
+        ${a.dailyBonus?`<span class="goal-pill" style="background:var(--amber-l);color:var(--amber-d)">🌟 毎日連続 ${(()=>{const d=(ses.activeDays||[]).slice().sort();let m=d.length>0?1:0,c=1;for(let i=1;i<d.length;i++){const df=Math.round((new Date(d[i]+'T00:00:00')-new Date(d[i-1]+'T00:00:00'))/86400000);if(df===1){c++;m=Math.max(m,c);}else if(df>1)c=1;}return m;})()}/7日</span>`:''}
+        ${a.mandatory&&met?'<span class="goal-pill" style="background:var(--green-l);color:var(--green-d);border-color:var(--green-l)">✓ 達成</span>':''}
+        ${a.mandatory&&!met&&!skipped?'<span class="penalty-badge">未達成-1pt</span>':''}
+        ${skipped?'<span class="goal-pill" style="background:var(--amber-l);color:var(--amber-d)">スキップ中</span>':''}
+      </div>
+      ${skipRow}
+    </div>`;
+  }).join('');
+}
+
+/* ---- UI HELPERS ---- */
+// ── CALENDAR ──
+// Assign a color to each activity id
+const ACT_COLORS=['#1D9E75','#378ADD','#D85A30','#EF9F27','#9B59B6','#E91E8C','#00BCD4','#FF5722','#4CAF50'];
+function actColor(idx){return ACT_COLORS[idx%ACT_COLORS.length];}
+
+function setCalView(v,btn){
+  calView=v;calOffset=0;calSelectedDay=null;
+  document.querySelectorAll('.cal-view-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderCalendar();
+}
+function calNav(dir){calOffset+=dir;calSelectedDay=null;renderCalendar();}
+
+function renderCalendar(){
+  if(!DB.currentUserId)return;
+  const S=cs();
+  // Build day→logs map from ALL logs
+  const dayMap={};
+  (S.logs||[]).forEach(l=>{
+    const k=l.dk||todayKey();
+    if(!dayMap[k])dayMap[k]=[];
+    dayMap[k].push(l);
+  });
+  const acts=ca();
+  // Legend
+  const legend=document.getElementById('cal-legend');
+  legend.innerHTML='<div class="cal-legend-row">'+acts.map((a,i)=>
+    `<div class="cal-legend-item"><div class="cal-legend-dot" style="background:${actColor(i)}"></div>${a.emoji||''}${a.name}</div>`
+  ).join('')+'</div>';
+
+  if(calView==='month') renderMonthCal(dayMap,acts);
+  else renderWeekCal(dayMap,acts);
+  renderDayDetail(dayMap);
+  renderWeekSummary(dayMap);
+}
+
+function renderWeekSummary(dayMap){
+  const card=document.getElementById('cal-week-summary');
+  if(!card)return;
+  // Determine the week being viewed (Saturday start)
+  const today=new Date();
+  const dow=today.getDay();
+  const daysFromSat=(dow+1)%7;
+  const weekStart=new Date(today);
+  weekStart.setDate(today.getDate()-daysFromSat+calOffset*7);
+  const weekEnd=new Date(weekStart);weekEnd.setDate(weekStart.getDate()+6);
+  // Collect all logs in this week
+  let totalPts=0,totalMins=0,totalCount=0;
+  for(let i=0;i<7;i++){
+    const d=new Date(weekStart);d.setDate(weekStart.getDate()+i);
+    const dk=dateKey(d);
+    const logs=dayMap[dk]||[];
+    logs.forEach(l=>{totalPts+=l.pts;totalMins+=l.mins;totalCount++;});
+  }
+  // Show for both views but always based on the navigated week
+  card.style.display='block';
+  document.getElementById('cal-week-range').textContent=
+    `${weekStart.getMonth()+1}/${weekStart.getDate()}（土）〜${weekEnd.getMonth()+1}/${weekEnd.getDate()}（金）`;
+  document.getElementById('cal-week-pts').textContent=totalPts;
+  document.getElementById('cal-week-mins').textContent=totalMins;
+  document.getElementById('cal-week-count').textContent=totalCount;
+}
+
+function renderMonthCal(dayMap,acts){
+  const today=new Date();
+  const base=new Date(today.getFullYear(),today.getMonth()+calOffset,1);
+  const year=base.getFullYear(),month=base.getMonth();
+  document.getElementById('cal-title').textContent=`${year}年${month+1}月`;
+  // Days of week header (土 start)
+  const DOWS=['土','日','月','火','水','木','金'];
+  let html='<div class="cal-dow-row">'+DOWS.map(d=>`<div class="cal-dow">${d}</div>`).join('')+'</div>';
+  html+='<div class="cal-month-grid">';
+  // First day of month, adjusted to Saturday-start
+  const firstDow=(new Date(year,month,1).getDay()+1)%7; // 0=sat
+  const daysInMonth=new Date(year,month+1,0).getDate();
+  const daysInPrev=new Date(year,month,0).getDate();
+  const totalCells=Math.ceil((firstDow+daysInMonth)/7)*7;
+  for(let i=0;i<totalCells;i++){
+    let d,isCurrentMonth=true;
+    if(i<firstDow){d=daysInPrev-firstDow+i+1;isCurrentMonth=false;}
+    else if(i>=firstDow+daysInMonth){d=i-firstDow-daysInMonth+1;isCurrentMonth=false;}
+    else d=i-firstDow+1;
+    const dk=isCurrentMonth?`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`:null;
+    const isToday=dk===todayKey();
+    const isSel=dk===calSelectedDay;
+    const logs=dk?dayMap[dk]||[]:[];
+    const dots=logs.length?acts.map((a,idx)=>{
+      const hasAct=logs.some(l=>l.actId===a.id);
+      return hasAct?`<div class="cal-dot" style="background:${actColor(idx)}"></div>`:'';
+    }).join(''):'';
+    const cls=['cal-day',!isCurrentMonth?'other-month':'',!logs.length&&isCurrentMonth?'no-data':'',isToday?'today':'',isSel?'selected':''].filter(Boolean).join(' ');
+    const onclick=dk&&logs.length?`onclick="selectCalDay('${dk}')"`:dk?`onclick="selectCalDay('${dk}')"` :'';
+    html+=`<div class="${cls}" ${onclick}>
+      <div class="cal-day-num">${d}</div>
+      <div class="cal-dots">${dots}</div>
+    </div>`;
+  }
+  html+='</div>';
+  document.getElementById('cal-grid').innerHTML=html;
+}
+
+function renderWeekCal(dayMap,acts){
+  const today=new Date();
+  // Find start of current week (Saturday)
+  const dow=today.getDay(); // 0=sun
+  const daysFromSat=(dow+1)%7;
+  const weekStart=new Date(today);
+  weekStart.setDate(today.getDate()-daysFromSat+calOffset*7);
+  const weekEnd=new Date(weekStart);weekEnd.setDate(weekStart.getDate()+6);
+  document.getElementById('cal-title').textContent=
+    `${weekStart.getMonth()+1}/${weekStart.getDate()}〜${weekEnd.getMonth()+1}/${weekEnd.getDate()}`;
+  const DOWS=['土','日','月','火','水','木','金'];
+  let html='<div class="cal-week-grid">';
+  for(let i=0;i<7;i++){
+    const d=new Date(weekStart);d.setDate(weekStart.getDate()+i);
+    const dk=dateKey(d);
+    const isToday=dk===todayKey();
+    const isSel=dk===calSelectedDay;
+    const logs=dayMap[dk]||[];
+    const actRows=acts.map((a,idx)=>{
+      const aLogs=logs.filter(l=>l.actId===a.id);
+      if(!aLogs.length)return '';
+      const mins=aLogs.reduce((s,l)=>s+l.mins,0);
+      return`<div class="cal-week-act-row">
+        <div class="cal-dot" style="background:${actColor(idx)};width:5px;height:5px"></div>
+        <span>${a.emoji||''}${mins}分</span>
+      </div>`;
+    }).filter(Boolean).join('');
+    const cls=['cal-week-day',isToday?'today':'',isSel?'selected':''].filter(Boolean).join(' ');
+    html+=`<div class="${cls}" onclick="selectCalDay('${dk}')">
+      <div class="cal-week-day-label">${DOWS[i]}</div>
+      <div class="cal-week-day-num">${d.getDate()}</div>
+      <div class="cal-week-acts">${actRows||'<span style="font-size:10px;color:var(--border)">-</span>'}</div>
+    </div>`;
+  }
+  html+='</div>';
+  document.getElementById('cal-grid').innerHTML=html;
+}
+
+function selectCalDay(dk){
+  calSelectedDay=calSelectedDay===dk?null:dk;
+  renderCalendar();
+}
+
+function renderDayDetail(dayMap){
+  const el=document.getElementById('cal-detail');
+  if(!calSelectedDay){el.innerHTML='';return;}
+  const logs=dayMap[calSelectedDay]||[];
+  const label=labelForKey(calSelectedDay);
+  if(!logs.length){
+    el.innerHTML=`<div class="detail-card"><div class="detail-header">${label}</div><div style="font-size:13px;color:var(--muted)">記録なし</div></div>`;
+    return;
+  }
+  const S=cs();
+  const totalMins=logs.reduce((s,l)=>s+l.mins,0);
+  const totalPts=logs.reduce((s,l)=>s+l.pts,0);
+  // Find global indices for each log entry
+  el.innerHTML=`<div class="detail-card">
+    <div class="detail-header">
+      <span>${label}</span>
+      <span style="font-size:12px;color:var(--muted)">${totalMins}分 ・ +${totalPts}pt</span>
+    </div>
+    ${[...logs].reverse().map(l=>{
+      const gIdx=S.logs.indexOf(l);
+      return`<div class="log-item" style="margin-bottom:6px">
+        <div class="log-em">${l.emoji}</div>
+        <div class="log-info">
+          <div class="log-name">${l.name}${l.metAt?' <span style="font-size:10px;color:var(--green-d);font-weight:700">🎯必須達成</span>':''}</div>
+          <div class="log-sub">${l.mins}分${l.pts===0?' · 0pt':''}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div class="log-pts" style="${l.pts===0?'color:var(--muted)':''}">+${l.pts}pt</div>
+          <button onclick="openLogEdit(${gIdx})" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;color:var(--muted);font-family:'Noto Sans JP',sans-serif">編集</button>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+let editingRewardId=null,editingAccRewardId=null;
+function useAccReward(id){
+  const S=cs();
+  const r=car().find(x=>x.id===id);if(!r)return;
+  if(Math.round(S.totalPts)<r.cost)return;
+  if(!confirm(r.name+'と交換しますか？ -'+r.cost+'pt（蓄積）'))return;
+  S.totalPts-=r.cost;if(S.totalPts<0)S.totalPts=0;
+  if(!S.accRewardHistory)S.accRewardHistory=[];
+  const now=new Date();
+  S.accRewardHistory.push({id:'arh'+Date.now(),rewardId:id,name:r.name,cost:r.cost,
+    time:now.toLocaleDateString('ja-JP',{month:'short',day:'numeric'})+' '+now.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'})});
+  saveDB();render();renderRewardPage();toast('🎉「'+r.name+'」と交換しました！');
+}
+function openAccRewardEdit(id){
+  editingAccRewardId=id;
+  if(id){
+    const r=car().find(x=>x.id===id);if(!r)return;
+    document.getElementById('are-name').value=r.name;
+    document.getElementById('are-cost').value=r.cost;
+    document.getElementById('are-examples').value=r.examples;
+  } else {
+    document.getElementById('are-name').value='';
+    document.getElementById('are-cost').value='50';
+    document.getElementById('are-examples').value='';
+  }
+  openModal('acc-reward-edit-modal');
+}
+function saveAccRewardEdit(){
+  const name=document.getElementById('are-name').value.trim();
+  const cost=Math.max(1,parseInt(document.getElementById('are-cost').value)||1);
+  const examples=document.getElementById('are-examples').value.trim();
+  if(!name){toast('名前を入力してください');return;}
+  if(editingAccRewardId){
+    const r=car().find(x=>x.id===editingAccRewardId);
+    if(r){r.name=name;r.cost=cost;r.examples=examples;}
+  } else {
+    car().push({id:'ar'+Date.now(),name,cost,examples});
+  }
+  saveDB();closeModal('acc-reward-edit-modal');render();renderRewardPage();toast('保存しました！');
+}
+function deleteAccReward(id){
+  if(!confirm('この特典を削除しますか？'))return;
+  const u=cu();u.accRewards=car().filter(x=>x.id!==id);
+  saveDB();render();
+}
+function openRewardEdit(id){
+  editingRewardId=id;
+  const r=cr().find(x=>x.id===id);if(!r)return;
+  document.getElementById('re-name').value=r.name;
+  document.getElementById('re-cost').value=r.cost;
+  document.getElementById('re-examples').value=r.examples;
+  openModal('reward-edit-modal');
+}
+function saveRewardEdit(){
+  const name=document.getElementById('re-name').value.trim();
+  const cost=Math.max(1,parseInt(document.getElementById('re-cost').value)||1);
+  const examples=document.getElementById('re-examples').value.trim();
+  if(!name){toast('名前を入力してください');return;}
+  const r=cr().find(x=>x.id===editingRewardId);
+  if(r){r.name=name;r.cost=cost;r.examples=examples;}
+  saveDB();closeModal('reward-edit-modal');render();renderRewardPage();toast('保存しました！');
+}
+function openLogEdit(idx){
+  editingLogIdx=idx;
+  const l=cs().logs[idx];
+  if(!l)return;
+  editLogDateKey=l.dk||todayKey();
+  // populate date buttons
+  const today=new Date();
+  const dateRow=document.getElementById('edit-date-row');
+  dateRow.innerHTML=Array.from({length:14},(_,i)=>{
+    const d=new Date(today);d.setDate(d.getDate()-i);
+    const k=dateKey(d);
+    return`<button class="date-btn${k===editLogDateKey?' sel':''}" data-dk="${k}" onclick="selectEditDate('${k}')">${labelForKey(k)}</button>`;
+  }).join('');
+  document.getElementById('edit-mins').value=l.mins||0;
+  document.getElementById('edit-count').value=l.count||1;
+  openModal('log-edit-modal');
+}
+function selectEditDate(k){
+  editLogDateKey=k;
+  document.querySelectorAll('#edit-date-row .date-btn').forEach(b=>b.classList.toggle('sel',b.dataset.dk===k));
+}
+function recalcSessionsFromLogs(){
+  // Rebuild weekSessions from scratch based on current logs
+  const S=cs();const acts=ca();
+  S.weekSessions={};
+  S.weekPts=0;
+  let newTotal=0;
+  const mult=getBonus(cu());
+  // Reset bonusPtsEarned tracking per act
+  const actBonusTrack={};
+  acts.forEach(a=>{actBonusTrack[a.id]={mandatoryMet:false,bonusPtsEarned:0,dailyPts:{}};});
+  // Process logs in order to recalculate pts
+  S.logs.forEach(l=>{
+    const a=acts.find(x=>x.id===l.actId);
+    if(!a)return;
+    const dk=l.dk||todayKey();
+    if(!S.weekSessions[l.actId])S.weekSessions[l.actId]={count:0,mins:0,mandatoryMet:false,bonusPtsEarned:0,dailyPts:{},activeDays:[]};
+    const ses=S.weekSessions[l.actId];
+    const track=actBonusTrack[l.actId];
+    const wasMetBefore=track.mandatoryMet;
+    ses.count+=(l.count||1);ses.mins+=l.mins;
+    const isMetNow=isMandatoryMet(a,S.weekSessions);
+    let earned=0;
+    const tiers=a.ptTiers||[];
+    const dayCap=a.sessionCap||1;
+    if(a.mandatory){
+      if(!wasMetBefore&&isMetNow){earned=1;track.mandatoryMet=true;ses.mandatoryMet=true;}
+      else if(wasMetBefore){
+        const tierNow=calcTierPts(tiers,ses.mins);
+        const tierGain=tierNow-(track.bonusPtsEarned||0);
+        if(tierGain>0){
+          const dayPts=ses.dailyPts[dk]||0;
+          const allowed=Math.max(0,dayCap-dayPts);
+          earned=Math.min(tierGain,allowed);
+          track.bonusPtsEarned=(track.bonusPtsEarned||0)+earned;
+          ses.bonusPtsEarned=track.bonusPtsEarned;
+          if(earned>0)ses.dailyPts[dk]=(ses.dailyPts[dk]||0)+earned;
+        }
+      }
+    } else {
+      const tierNow=calcTierPts(tiers,ses.mins);
+      const tierGain=tierNow-(track.bonusPtsEarned||0);
+      if(tierGain>0){
+        const dayPts=ses.dailyPts[dk]||0;
+        const allowed=Math.max(0,dayCap-dayPts);
+        earned=Math.min(tierGain,allowed);
+        track.bonusPtsEarned=(track.bonusPtsEarned||0)+earned;
+        ses.bonusPtsEarned=track.bonusPtsEarned;
+        if(earned>0)ses.dailyPts[dk]=(ses.dailyPts[dk]||0)+earned;
+      }
+    }
+    l.pts=earned;
+    l.metAt=(!wasMetBefore&&isMetNow);
+    S.weekPts+=earned;
+    newTotal+=earned*mult;
+    if(!ses.activeDays)ses.activeDays=[];
+    if(!ses.activeDays.includes(dk))ses.activeDays.push(dk);
+  });
+  S.totalPts=newTotal;
+}
+function saveLogEdit(){
+  const mins=parseInt(document.getElementById('edit-mins').value)||0;
+  const count=parseInt(document.getElementById('edit-count').value)||1;
+  if(mins<1){toast('時間を入力してください');return;}
+  const S=cs();
+  const l=S.logs[editingLogIdx];
+  if(!l)return;
+  l.mins=mins;
+  l.count=count;
+  l.dk=editLogDateKey;
+  // recalc
+  recalcSessionsFromLogs();
+  saveDB();closeModal('log-edit-modal');
+  calSelectedDay=editLogDateKey;
+  render();renderCalendar();
+  toast('記録を修正しました');
+}
+function deleteLog(){
+  if(!confirm('この記録を削除しますか？'))return;
+  const S=cs();
+  S.logs.splice(editingLogIdx,1);
+  recalcSessionsFromLogs();
+  saveDB();closeModal('log-edit-modal');
+  render();renderCalendar();
+  toast('記録を削除しました');
+}
+
+function renderRewardPage(){
+  if(!DB.currentUserId)return;
+  const S=cs();const mult=getBonus(cu());
+
+  // week pts
+  const rwp=document.getElementById('reward-week-pts');
+  const rap=document.getElementById('reward-acc-pts');
+  if(rwp){const eff=Math.round(S.weekPts*mult*10)/10;rwp.textContent=eff%1===0?eff:eff.toFixed(1);}
+  if(rap)rap.textContent=Math.round(S.totalPts);
+
+  // reward list
+  const rewardListEl=document.getElementById('reward-list');
+  if(rewardListEl){
+    rewardListEl.innerHTML='';
+    cr().forEach(function(r){
+      const rp=S.weekPts*mult;
+      const canUse=rp>=r.cost;
+      const card=document.createElement('div');
+      card.className='reward-card';
+      card.innerHTML='<div class="rh"><div class="rname">'+r.name+'</div>'
+        +'<div style="display:flex;align-items:center;gap:6px">'
+        +'<div class="rbadge '+r.badge+'">'+r.cost+'pt</div>'
+        +'</div></div>'
+        +'<div class="rexample">'+r.examples+'</div>';
+      const editBtn=document.createElement('button');
+      editBtn.textContent='編集';
+      editBtn.style.cssText='background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:3px 7px;font-size:11px;cursor:pointer;color:var(--muted);font-family:sans-serif;margin-left:6px';
+      editBtn.addEventListener('click',function(){openRewardEdit(r.id);});
+      card.querySelector('.rh div:last-child').appendChild(editBtn);
+      const useBtn=document.createElement('button');
+      useBtn.className='use-btn';
+      useBtn.disabled=!canUse;
+      useBtn.textContent=canUse?'使う（'+r.cost+'pt）':'ポイントが足りません';
+      useBtn.addEventListener('click',function(){useReward(r.id);});
+      card.appendChild(useBtn);
+      rewardListEl.appendChild(card);
+    });
+  }
+
+  // history list — rendered by renderRewardHistory()
+  renderRewardHistory();
+
+  // acc reward list
+  const accEl=document.getElementById('acc-reward-list');
+  if(accEl){
+    accEl.innerHTML='';
+    car().forEach(function(r){
+      const canUse=Math.round(S.totalPts)>=r.cost;
+      const card=document.createElement('div');
+      card.className='reward-card';
+      card.innerHTML='<div class="rh"><div class="rname">'+r.name+'</div>'
+        +'<div style="display:flex;align-items:center;gap:6px">'
+        +'<div class="rbadge lg">'+r.cost+'pt</div>'
+        +'</div></div>'
+        +'<div class="rexample">'+r.examples+'</div>';
+      const editBtn=document.createElement('button');
+      editBtn.textContent='編集';
+      editBtn.style.cssText='background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:3px 7px;font-size:11px;cursor:pointer;color:var(--muted);font-family:sans-serif;margin-left:6px';
+      editBtn.addEventListener('click',function(){openAccRewardEdit(r.id);});
+      card.querySelector('.rh div:last-child').appendChild(editBtn);
+      const delBtn=document.createElement('button');
+      delBtn.textContent='🗑';
+      delBtn.style.cssText='background:none;border:none;font-size:15px;cursor:pointer;color:var(--muted);padding:2px;margin-left:2px';
+      delBtn.addEventListener('click',function(){deleteAccReward(r.id);});
+      card.querySelector('.rh div:last-child').appendChild(delBtn);
+      const useBtn=document.createElement('button');
+      useBtn.className='use-btn';
+      useBtn.disabled=!canUse;
+      if(canUse){useBtn.style.borderColor='var(--coral)';useBtn.style.color='var(--coral-d)';}
+      useBtn.textContent=canUse?'累計ptで交換（'+r.cost+'pt）':'蓄積ポイントが足りません（現在'+Math.round(S.totalPts)+'pt）';
+      useBtn.addEventListener('click',function(){useAccReward(r.id);});
+      card.appendChild(useBtn);
+      accEl.appendChild(card);
+    });
+  }
+}
+
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
+function showPage(name,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  if(btn)btn.classList.add('active');
+  if(name==='settings'&&DB.currentUserId){
+    const inp=document.getElementById('streak-goal-input');
+    if(inp)inp.value=cu().streakGoal||6;
+  }
+  if(name==='log'&&DB.currentUserId){
+    calSelectedDay=todayKey();
+    renderCalendar();
+  }
+  if(name==='reward'&&DB.currentUserId){
+    renderRewardHistory();
+  }
+  if(name==='reward'&&DB.currentUserId){
+    renderRewardPage();
+  }
+}
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
+document.querySelectorAll('.modal-overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');}));
+
+/* ---- INIT ---- */
+if(DB.users.length===0){
+  DB.users.push({id:'u_default',name:'ユーザー1',emoji:'🧒',color:'green',activities:JSON.parse(JSON.stringify(DEF_ACTS)),streakGoal:6,state:{weekPts:0,totalPts:0,streak:0,weekSessions:{},logs:[]}});
+  saveDB();
+}
+renderUserSelect();
+</script>
+</body>
+</html>
