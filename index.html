@@ -8,13 +8,13 @@
 <title>自己投資ゲーム</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=M+PLUS+Rounded+1c:wght@400;700&display=swap');
-:root{--green:#1D9E75;--green-l:#E1F5EE;--green-d:#0F6E56;--amber:#EF9F27;--amber-l:#FAEEDA;--amber-d:#854F0B;--coral:#D85A30;--coral-l:#FAECE7;--coral-d:#993C1D;--bg:#F7F6F2;--surface:#fff;--border:rgba(0,0,0,0.08);--text:#1a1a1a;--muted:#777;--r:16px;--rs:10px}
+:root{--green:#1D9E75;--green-l:#E1F5EE;--green-d:#0F6E56;--amber:#EF9F27;--amber-l:#FAEEDA;--amber-d:#854F0B;--coral:#D85A30;--coral-l:#FAECE7;--coral-d:#993C1D;--blue:#378ADD;--blue-l:#E6F1FB;--blue-d:#185FA5;--bg:#F7F6F2;--surface:#fff;--border:rgba(0,0,0,0.08);--text:#1a1a1a;--muted:#777;--r:16px;--rs:10px}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
-.screen{display:none;min-height:100vh}.screen.active{display:block}
+.screen{display:none}.screen.active{display:block}
 
 /* USER SELECT */
-#screen-users{padding:32px 20px 40px;display:flex;flex-direction:column;align-items:center}
+#screen-users{padding:32px 20px 16px;display:flex;flex-direction:column;align-items:center;min-height:auto}
 .app-logo{font-family:'M PLUS Rounded 1c',sans-serif;font-size:26px;font-weight:700;color:var(--green-d);margin-bottom:6px;text-align:center}
 .app-tagline{font-size:13px;color:var(--muted);margin-bottom:32px;text-align:center}
 .user-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;max-width:360px;margin-bottom:20px}
@@ -24,7 +24,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 .user-name{font-size:14px;font-weight:500}
 .user-streak{font-size:11px;color:var(--muted);margin-top:3px}
 .user-edit-btn{position:absolute;top:8px;right:8px;background:none;border:none;font-size:14px;cursor:pointer;opacity:.4;padding:4px}
-.add-user-btn{width:100%;max-width:360px;padding:14px;border:1.5px dashed var(--border);border-radius:var(--r);background:none;font-family:'Noto Sans JP',sans-serif;font-size:14px;color:var(--muted);cursor:pointer}
+.add-user-btn{width:100%;max-width:360px;padding:14px;border:1.5px dashed var(--border);border-radius:var(--r);background:none;font-family:'Noto Sans JP',sans-serif;font-size:14px;color:var(--muted);cursor:pointer;margin-bottom:0}
 
 /* MAIN APP */
 #screen-app{padding-bottom:80px}
@@ -357,6 +357,15 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
         <button onclick="saveStreakGoal()" style="padding:8px 14px;background:var(--green);color:#fff;border:none;border-radius:var(--rs);font-family:'Noto Sans JP',sans-serif;font-size:13px;cursor:pointer">保存</button>
       </div>
     </div>
+    <div class="danger-zone" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+      <div class="sec" style="margin-bottom:8px">データのバックアップ・復元</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px">ブラウザのデータ消去前にバックアップを取っておくと安心です。</div>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <button onclick="downloadBackup()" style="flex:1;padding:10px;background:var(--green-l);border:1px solid var(--green);border-radius:var(--rs);font-family:'Noto Sans JP',sans-serif;font-size:13px;color:var(--green-d);cursor:pointer;font-weight:500">⬇ JSONダウンロード</button>
+        <button onclick="copyBackup()" style="flex:1;padding:10px;background:var(--blue-l);border:1px solid var(--blue);border-radius:var(--rs);font-family:'Noto Sans JP',sans-serif;font-size:13px;color:var(--blue-d);cursor:pointer;font-weight:500">📋 テキストをコピー</button>
+      </div>
+      <button onclick="openRestoreModal()" style="width:100%;padding:10px;background:var(--amber-l);border:1px solid var(--amber);border-radius:var(--rs);font-family:'Noto Sans JP',sans-serif;font-size:13px;color:var(--amber-d);cursor:pointer;font-weight:500">⬆ バックアップから復元</button>
+    </div>
     <div class="danger-zone">
       <div class="sec" style="margin-bottom:8px">ユーザー管理</div>
       <button class="danger-btn" onclick="confirmDeleteUser()">このユーザーを削除する</button>
@@ -489,6 +498,22 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- RESTORE MODAL -->
+<div class="modal-overlay" id="restore-modal">
+  <div class="modal">
+    <div class="modal-title">バックアップから復元</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px">バックアップのテキストを貼り付けてください。現在のデータは上書きされます。</div>
+    <div class="field">
+      <label>バックアップデータ（JSONテキスト）</label>
+      <textarea id="restore-input" style="width:100%;height:120px;padding:10px;border:1px solid var(--border);border-radius:var(--rs);font-size:12px;font-family:monospace;background:var(--bg);resize:vertical" placeholder='{"users":[...]}を貼り付け'></textarea>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('restore-modal')">キャンセル</button>
+      <button class="btn-primary" onclick="restoreBackup()">復元する</button>
+    </div>
+  </div>
+</div>
 
 <!-- ACC REWARD EDIT MODAL -->
 <div class="modal-overlay" id="acc-reward-edit-modal">
@@ -1599,6 +1624,62 @@ function renderRewardPage(){
   }
 }
 
+function downloadBackup(){
+  const data=localStorage.getItem('jiko_v4')||'{}';
+  const now=new Date();
+  const fname='jiko_backup_'+now.getFullYear()+(now.getMonth()+1).toString().padStart(2,'0')+now.getDate().toString().padStart(2,'0')+'.json';
+  const blob=new Blob([data],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=fname;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('バックアップファイルをダウンロードしました！');
+}
+function copyBackup(){
+  const data=localStorage.getItem('jiko_v4')||'{}';
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(data).then(function(){
+      toast('クリップボードにコピーしました！');
+    }).catch(function(){
+      fallbackCopy(data);
+    });
+  } else {
+    fallbackCopy(data);
+  }
+}
+function fallbackCopy(text){
+  const ta=document.createElement('textarea');
+  ta.value=text;
+  ta.style.position='fixed';ta.style.opacity='0';
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand('copy');
+  document.body.removeChild(ta);
+  toast('クリップボードにコピーしました！');
+}
+function openRestoreModal(){
+  document.getElementById('restore-input').value='';
+  openModal('restore-modal');
+}
+function restoreBackup(){
+  const text=document.getElementById('restore-input').value.trim();
+  if(!text){toast('データを貼り付けてください');return;}
+  try{
+    const parsed=JSON.parse(text);
+    if(!parsed.users||!Array.isArray(parsed.users)){
+      toast('正しいバックアップデータではありません');return;
+    }
+    if(!confirm('現在のデータをバックアップで上書きしますか？\nこの操作は取り消せません。'))return;
+    localStorage.setItem('jiko_v4',text);
+    DB=parsed;
+    closeModal('restore-modal');
+    goUserSelect();
+    toast('復元しました！');
+  } catch(e){
+    toast('データの形式が正しくありません');
+  }
+}
 function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
 function showPage(name,btn){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
