@@ -244,15 +244,20 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
   <div class="page active" id="page-home">
     <div class="stats-row">
       <div class="stat-card">
-        <div class="stat-lbl">今週のポイント</div>
+        <div class="stat-lbl">今週獲得（来週使える）</div>
         <div class="stat-val" id="week-pts">0</div>
         <div class="stat-unit">pt（ボーナス後）</div>
       </div>
       <div class="stat-card">
-        <div class="stat-lbl">蓄積ポイント</div>
-        <div class="stat-val" id="total-pts">0</div>
+        <div class="stat-lbl">今使えるポイント</div>
+        <div class="stat-val" id="spendable-pts">0</div>
         <div class="stat-unit">pt</div>
       </div>
+    </div>
+    <div class="stat-card" style="margin-bottom:12px">
+      <div class="stat-lbl">蓄積ポイント（累計）</div>
+      <div class="stat-val" id="total-pts">0</div>
+      <div class="stat-unit">pt</div>
     </div>
     <div class="card">
       <div class="sec">週間連続ボーナス倍率</div>
@@ -322,9 +327,9 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
     <!-- Points summary -->
     <div class="stats-row" style="margin-bottom:12px">
       <div class="stat-card">
-        <div class="stat-lbl">今週のポイント</div>
+        <div class="stat-lbl">使えるポイント</div>
         <div class="stat-val" id="reward-week-pts">0</div>
-        <div class="stat-unit">pt（ボーナス後）</div>
+        <div class="stat-unit">pt（前週繰越）</div>
       </div>
       <div class="stat-card">
         <div class="stat-lbl">蓄積ポイント</div>
@@ -916,8 +921,9 @@ function logAct(id,mins,dk){
 function useReward(rewardId){
   const S=cs();const mult=getBonus(cu());
   const r=cr().find(x=>x.id===rewardId);if(!r)return;
-  if(S.weekPts*mult<r.cost)return;
-  S.weekPts-=r.cost/mult;if(S.weekPts<0)S.weekPts=0;
+  if(!S.spendablePts)S.spendablePts=0;
+  if(S.spendablePts<r.cost)return;
+  S.spendablePts-=r.cost;if(S.spendablePts<0)S.spendablePts=0;
   if(!S.rewardHistory)S.rewardHistory=[];
   const now=new Date();
   S.rewardHistory.push({
@@ -997,6 +1003,14 @@ function resetWeek(){
     S.totalPts+=dailyBonusTotal*mult;
     setTimeout(()=>toast('🌟 毎日継続ボーナス！'+dailyBonusTotal+'項目×+1pt！'),400);
   }
+  // 使えるポイントの繰り越し: 未使用分を半分に減らしてから今週分を加算
+  if(!S.spendablePts)S.spendablePts=0;
+  const carried=Math.floor(S.spendablePts*0.5);
+  const thisWeekEarned=Math.round(S.weekPts*mult*10)/10;
+  S.spendablePts=carried+thisWeekEarned;
+  if(carried<S.spendablePts-thisWeekEarned){
+    setTimeout(()=>toast('来週の使えるポイント: '+S.spendablePts+'pt（繰越'+carried+'pt + 今週'+thisWeekEarned+'pt）'),500);
+  }
   S.weekSessions={};S.weekPts=0;
   saveDB();setTimeout(render,300);
 }
@@ -1064,6 +1078,8 @@ function render(){
   const eff=Math.round(S.weekPts*mult*10)/10;
   document.getElementById('week-pts').textContent=eff%1===0?eff:eff.toFixed(1);
   document.getElementById('total-pts').textContent=Math.round(S.totalPts);
+  const spEl=document.getElementById('spendable-pts');
+  if(spEl)spEl.textContent=Math.round(S.spendablePts||0);
   const oldAcc=document.getElementById('acc-pts');if(oldAcc)oldAcc.textContent=Math.round(S.totalPts);
 
   // bonus pips
@@ -1554,7 +1570,7 @@ function renderRewardPage(){
   // week pts
   const rwp=document.getElementById('reward-week-pts');
   const rap=document.getElementById('reward-acc-pts');
-  if(rwp){const eff=Math.round(S.weekPts*mult*10)/10;rwp.textContent=eff%1===0?eff:eff.toFixed(1);}
+  if(rwp){const sp=S.spendablePts||0;rwp.textContent=Math.round(sp*10)/10;}
   if(rap)rap.textContent=Math.round(S.totalPts);
 
   // reward list
@@ -1562,8 +1578,8 @@ function renderRewardPage(){
   if(rewardListEl){
     rewardListEl.innerHTML='';
     cr().forEach(function(r){
-      const rp=S.weekPts*mult;
-      const canUse=rp>=r.cost;
+      const sp=S.spendablePts||0;
+      const canUse=sp>=r.cost;
       const card=document.createElement('div');
       card.className='reward-card';
       card.innerHTML='<div class="rh"><div class="rname">'+r.name+'</div>'
