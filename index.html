@@ -277,7 +277,7 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
       <div class="mbar-wrap"><div class="mbar-fill" id="mbar" style="width:0%"></div></div>
       <div style="font-size:11px;color:var(--muted);margin-top:6px">🔴 必須達成で+1pt、未達成でリセット時-1pt。🌟 7日連続で継続ボーナス+1pt。</div>
     </div>
-    <button class="reset-btn" onclick="resetWeek()">📅 週をリセット（土曜日に押す）</button>
+    <button class="reset-btn" onclick="openResetModal()">📅 週をリセット</button>
   </div>
 
   <!-- LOG -->
@@ -503,6 +503,22 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- RESET MODAL -->
+<div class="modal-overlay" id="reset-modal">
+  <div class="modal">
+    <div class="modal-title">週をリセット</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:14px">どの週のリセットですか？土曜日を選んでください。</div>
+    <div class="field">
+      <label>リセットする週の土曜日</label>
+      <div id="reset-date-options" style="display:flex;flex-direction:column;gap:8px;margin-top:6px"></div>
+    </div>
+    <div class="modal-btns" style="margin-top:16px">
+      <button class="btn-cancel" onclick="closeModal('reset-modal')">キャンセル</button>
+      <button class="btn-primary" onclick="confirmReset()">リセットする</button>
+    </div>
+  </div>
+</div>
 
 <!-- RESTORE MODAL -->
 <div class="modal-overlay" id="restore-modal">
@@ -952,8 +968,46 @@ window.undoRewardByIndex=function undoRewardByIndex(idx){
   S.rewardHistory.splice(idx,1);
   saveDB();render();toast(h.cost+'ptを返還しました');
 };
-function resetWeek(){
-  if(!confirm('週をリセットします（土曜日用）。\nペナルティの計算をして次の週に進みます。'))return;
+let selectedResetDate=null;
+function openResetModal(){
+  selectedResetDate=null;
+  const container=document.getElementById('reset-date-options');
+  // Find past 4 Saturdays
+  const today=new Date();
+  const options=[];
+  for(let i=0;i<5;i++){
+    const d=new Date(today);
+    // Find Saturday going back
+    const dow=d.getDay(); // 0=sun,6=sat
+    const daysBack=((dow+1)%7)+i*7; // days back to reach Saturday i weeks ago
+    d.setDate(today.getDate()-daysBack);
+    const dk=dateKey(d);
+    const label=i===0?'今週（'+d.toLocaleDateString('ja-JP',{month:'short',day:'numeric'})+'土）':
+      i===1?'先週（'+d.toLocaleDateString('ja-JP',{month:'short',day:'numeric'})+'土）':
+      d.toLocaleDateString('ja-JP',{month:'short',day:'numeric'})+'（土）';
+    options.push({dk,label,i});
+  }
+  container.innerHTML=options.map((o,idx)=>`
+    <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--rs);cursor:pointer;background:var(--bg)">
+      <input type="radio" name="reset-date" value="${o.dk}" ${idx===0?'checked':''} style="accent-color:var(--green)">
+      <span style="font-size:14px">${o.label}</span>
+    </label>`).join('');
+  if(options.length>0) selectedResetDate=options[0].dk;
+  // Update selection on radio change
+  setTimeout(()=>{
+    document.querySelectorAll('input[name="reset-date"]').forEach(r=>{
+      r.addEventListener('change',function(){selectedResetDate=this.value;});
+    });
+  },100);
+  openModal('reset-modal');
+}
+function confirmReset(){
+  if(!selectedResetDate){toast('日付を選んでください');return;}
+  closeModal('reset-modal');
+  resetWeek(selectedResetDate);
+}
+function resetWeek(resetDateKey){
+  if(!confirm('週をリセットします。\nペナルティの計算をして次の週に進みます。'))return;
   const S=cs();const acts=ca();
   const mult=getBonus(cu());
   const ws=S.weekSessions||{};
