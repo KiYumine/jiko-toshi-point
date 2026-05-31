@@ -988,9 +988,9 @@ function openResetModal(){
     options.push({dk,label,i});
   }
   container.innerHTML=options.map((o,idx)=>`
-    <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--rs);cursor:pointer;background:var(--bg)">
-      <input type="radio" name="reset-date" value="${o.dk}" ${idx===0?'checked':''} style="accent-color:var(--green)">
-      <span style="font-size:14px">${o.label}</span>
+    <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--rs);cursor:pointer;background:var(--bg);width:100%;box-sizing:border-box">
+      <input type="radio" name="reset-date" value="${o.dk}" ${idx===0?'checked':''} style="accent-color:var(--green);flex-shrink:0;width:18px;height:18px">
+      <span style="font-size:14px;color:var(--text)">${o.label}</span>
     </label>`).join('');
   if(options.length>0) selectedResetDate=options[0].dk;
   // Update selection on radio change
