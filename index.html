@@ -630,95 +630,85 @@ function processWeekResets(u){
   const S=ensureState(u);
   const acts=u.activities||[];
   if(!S.weekHistory)S.weekHistory=[];
-  if(!S.currentWeekStart)S.currentWeekStart=getCurrentWeekStart();
 
   const curWeekStart=getCurrentWeekStart();
 
-  // Find all week starts that have logs but haven't been processed yet
-  const logWeekStarts=new Set();
+  // Always fully recalculate everything from logs (idempotent)
+  // Group logs by week
+  const byWeek={};
   (S.logs||[]).forEach(l=>{
-    const dk=l.dk||todayKey();
-    logWeekStarts.add(getWeekStartForDate(dk));
+    const ws=getWeekStartForDate(l.dk||todayKey());
+    if(!byWeek[ws])byWeek[ws]=[];
+    byWeek[ws].push(l);
   });
-  logWeekStarts.add(curWeekStart);
 
-  const allWeekStarts=[...logWeekStarts].sort();
+  const allPastWeeks=Object.keys(byWeek).filter(ws=>ws<curWeekStart).sort();
+  const streakGoal=u.streakGoal||6;
 
-  // Process each past week that hasn't been finalized
-  let changed=false;
-  allWeekStarts.forEach(ws=>{
-    if(ws>=curWeekStart) return; // don't finalize current week
-    const existing=S.weekHistory.find(w=>w.weekStart===ws);
-    // Get logs for this week
-    const weekLogs=(S.logs||[]).filter(l=>getWeekStartForDate(l.dk||todayKey())===ws);
-    const earnedPts=weekLogs.reduce((s,l)=>s+(l.pts||0),0);
-    const mult=BONUS[Math.min(S.streak,BONUS.length-1)].mult;
+  // Rebuild weekHistory from scratch
+  S.weekHistory=[];
+  let streak=0;
+  let spendable=0;
+
+  allPastWeeks.forEach(ws=>{
+    const wlogs=byWeek[ws]||[];
+    const earnedPts=wlogs.reduce((s,l)=>s+(l.pts||0),0);
+    const mult=BONUS[Math.min(streak,BONUS.length-1)];
+
     // Check mandatory
-    const tempSessions={};
-    weekLogs.forEach(l=>{
-      if(!tempSessions[l.actId])tempSessions[l.actId]={count:0,mins:0};
-      tempSessions[l.actId].count+=(l.count||1);
-      tempSessions[l.actId].mins+=(l.mins||0);
+    const tempSess={};
+    wlogs.forEach(l=>{
+      if(!l.actId)return;
+      if(!tempSess[l.actId])tempSess[l.actId]={count:0,mins:0};
+      tempSess[l.actId].count+=(l.count||1);
+      tempSess[l.actId].mins+=(l.mins||0);
     });
-    const mActs=acts.filter(a=>a.mandatory&&!((tempSessions[a.id]||{}).skipped));
-    const mDone=mActs.filter(a=>isMandatoryMet(a,tempSessions)).length;
-    const mFailed=mActs.length-mDone;
+    const mActs=acts.filter(a=>a.mandatory);
+    const mFailed=mActs.filter(a=>!isMandatoryMet(a,tempSess)).length;
     const penalty=mFailed;
-    const streakGoal=u.streakGoal||6;
-    const effectivePts=Math.round(earnedPts*mult*10)/10;
+
+    // effectivePts = earned * current streak bonus, rounded to integer
+    const effectivePts=Math.round(earnedPts*mult);
     const streakUp=effectivePts>=streakGoal;
 
-    if(!existing){
-      S.weekHistory.push({weekStart:ws,earnedPts,effectivePts,penalty,streakUp,processed:true});
-      changed=true;
-    } else if(existing.earnedPts!==earnedPts||existing.penalty!==penalty){
-      existing.earnedPts=earnedPts;
-      existing.effectivePts=effectivePts;
-      existing.penalty=penalty;
-      existing.streakUp=streakUp;
-      changed=true;
-    }
+    S.weekHistory.push({weekStart:ws,earnedPts,effectivePts,penalty,streakUp,processed:true});
+
+    // Update streak for next week
+    if(streakUp) streak=Math.min(streak+1,5);
+    else streak=Math.max(0,streak-1);
+
+    // spendable: half carry + this week net (integer only)
+    spendable=Math.floor(spendable*0.5)+Math.max(0,effectivePts-penalty);
   });
 
-  if(changed||S.currentWeekStart!==curWeekStart){
-    // Recalculate streak and spendablePts from weekHistory chain
-    const pastWeeks=[...S.weekHistory].sort((a,b)=>a.weekStart.localeCompare(b.weekStart));
-    let streak=0;
-    let spendable=0;
-    let totalPenalty=0;
-    pastWeeks.forEach(w=>{
-      if(w.streakUp) streak=Math.min(streak+1,5);
-      else streak=Math.max(0,streak-1);
-      totalPenalty+=w.penalty||0;
-      // carry over: existing spendable * 0.5 + this week earned (after penalty)
-      spendable=Math.floor(spendable*0.5)+Math.max(0,w.effectivePts-(w.penalty||0));
-    });
-    // Subtract already-used reward pts
-    const usedPts=(S.rewardHistory||[]).reduce((s,h)=>s+(h.cost||0),0);
-    spendable=Math.max(0,spendable-usedPts);
+  // Subtract used reward pts
+  const usedPts=(S.rewardHistory||[]).reduce((s,h)=>s+(h.cost||0),0);
+  spendable=Math.max(0,spendable-usedPts);
 
-    S.streak=streak;
-    S.spendablePts=spendable;
-    S.currentWeekStart=curWeekStart;
+  // Current week
+  const curLogs=(byWeek[curWeekStart]||[]);
+  const curWeekPts=curLogs.reduce((s,l)=>s+(l.pts||0),0);
+  const curSessions={};
+  curLogs.forEach(l=>{
+    if(!l.actId)return;
+    if(!curSessions[l.actId])curSessions[l.actId]={count:0,mins:0,mandatoryMet:false,bonusPtsEarned:0,dailyPts:{},activeDays:[]};
+    curSessions[l.actId].count+=(l.count||1);
+    curSessions[l.actId].mins+=(l.mins||0);
+    if(l.dk&&!curSessions[l.actId].activeDays.includes(l.dk))curSessions[l.actId].activeDays.push(l.dk);
+  });
 
-    // Current week sessions
-    const curLogs=(S.logs||[]).filter(l=>getWeekStartForDate(l.dk||todayKey())===curWeekStart);
-    S.weekPts=curLogs.reduce((s,l)=>s+(l.pts||0),0);
-    const ws2={};
-    curLogs.forEach(l=>{
-      if(!l.actId)return;
-      if(!ws2[l.actId])ws2[l.actId]={count:0,mins:0,mandatoryMet:false,bonusPtsEarned:0,dailyPts:{},activeDays:[]};
-      ws2[l.actId].count+=(l.count||1);
-      ws2[l.actId].mins+=(l.mins||0);
-      if(l.dk&&!ws2[l.actId].activeDays.includes(l.dk))ws2[l.actId].activeDays.push(l.dk);
-    });
-    S.weekSessions=ws2;
-    // totalPts = all logs
-    S.totalPts=(S.logs||[]).reduce((s,l)=>s+(l.pts||0),0);
-    saveDB();
-    return true; // changed
-  }
-  return false;
+  // totalPts = sum of all log pts (raw, no bonus)
+  const totalPts=(S.logs||[]).reduce((s,l)=>s+(l.pts||0),0);
+
+  S.streak=streak;
+  S.spendablePts=spendable;
+  S.weekPts=curWeekPts;
+  S.weekSessions=curSessions;
+  S.totalPts=totalPts;
+  S.currentWeekStart=curWeekStart;
+
+  saveDB();
+  return true;
 }
 
 function checkAutoReset(){
