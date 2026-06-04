@@ -778,6 +778,8 @@ function isMandatoryMet(act, sessions){
 
 /* ---- USER SELECT ---- */
 function renderUserSelect(){
+  // Run auto-reset for all users so streak display is up to date
+  DB.users.forEach(u=>processWeekResets(u));
   const g=document.getElementById('user-grid');g.innerHTML='';
   DB.users.forEach(u=>{
     const s=ensureState(u);const[,cl]=COLORS[u.color||'green'];
