@@ -628,9 +628,25 @@ function getUser(id){return DB.users.find(u=>u.id===id);}
 function cr(){const u=cu();if(!u.rewards)u.rewards=JSON.parse(JSON.stringify(DEF_REWARDS));return u.rewards;}
 function car(){const u=cu();if(!u.accRewards)u.accRewards=JSON.parse(JSON.stringify(DEF_ACC_REWARDS));return u.accRewards;}
 function ensureState(u){
-  if(!u.state)u.state={weekPts:0,totalPts:0,streak:0,weekSessions:{},logs:[]};
-  // weekSessions: {actId: {count:N, mins:N}}
-  return u.state;
+  if(!u.state)u.state={weekPts:0,spendablePts:0,totalPts:0,streak:0,weekSessions:{},logs:[],rewardHistory:[],accRewardHistory:[]};
+  const S=u.state;
+  // Migration: fix legacy data
+  if(S.spendablePts===undefined)S.spendablePts=0;
+  if(!S.rewardHistory)S.rewardHistory=[];
+  if(!S.accRewardHistory)S.accRewardHistory=[];
+  if(!S.weekSessions)S.weekSessions={};
+  if(!S.logs)S.logs=[];
+  // Fix inflated weekPts from old version: weekPts (raw) should be <= totalPts
+  if(S.totalPts===0&&S.weekPts>0){
+    // Old data: weekPts was used as the display value (bonus included)
+    // Move it to spendablePts if spendablePts is 0, reset weekPts
+    if(S.spendablePts===0)S.spendablePts=Math.round(S.weekPts);
+    S.weekPts=0;
+    saveDB();
+  }
+  // Streak sanity: cap at 5 (max bonus level)
+  if(S.streak>5)S.streak=Math.min(5,S.streak);
+  return S;
 }
 function cu(){return getUser(DB.currentUserId);}
 function cs(){return ensureState(cu());}
