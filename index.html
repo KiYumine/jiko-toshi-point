@@ -653,7 +653,7 @@ function processWeekResets(u){
   allPastWeeks.forEach(ws=>{
     const wlogs=byWeek[ws]||[];
     const earnedPts=wlogs.reduce((s,l)=>s+(l.pts||0),0);
-    const mult=BONUS[Math.min(streak,BONUS.length-1)];
+    const mult=BONUS[Math.min(streak,BONUS.length-1)].mult;
 
     // Check mandatory
     const tempSess={};
