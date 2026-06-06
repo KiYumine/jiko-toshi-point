@@ -1002,74 +1002,121 @@ function calcTierPts(tiers,totalMins){
   return pts;
 }
 
-function logAct(id,mins,dk){
-  const S=cs();const a=ca().find(x=>x.id===id);if(!a)return;
-  const mult=getBonus(cu());
-  if(!S.weekSessions)S.weekSessions={};
-  if(!S.weekSessions[id])S.weekSessions[id]={count:0,mins:0,mandatoryMet:false,bonusPtsEarned:0,dailyPts:{},activeDays:[]};
-  const ses=S.weekSessions[id];
-  const wasMetBefore=ses.mandatoryMet||isMandatoryMet(a,S.weekSessions);
-  const minsBeforeSession=ses.mins;
-  ses.count++;ses.mins+=mins;
-  const isMetNow=isMandatoryMet(a,S.weekSessions);
-  let earned=0;
+function calcEarnedForSession(a, sessions, mins, dayKey){
+  // Calculate pts for a single session given current state of sessions
+  // sessions[a.id] must already include this session's count/mins
+  const ses=sessions[a.id]||{count:0,mins:0,mandatoryMet:false,bonusPtsEarned:0,dailyPts:{}};
   const tiers=a.ptTiers||[];
-  const cap=a.sessionCap||1;
+  const dayCap=a.sessionCap||1;
+  let earned=0;
 
   if(a.mandatory){
-    if(!wasMetBefore&&isMetNow){
-      // 必須達成した瞬間: +1pt（ボーナスは別途）
-      earned=1;ses.mandatoryMet=true;
-      // Also check if this session also crosses a bonus tier
+    if(ses.mandatoryMet){
+      // After mandatory: tier-based with daily cap
       const tierNow=calcTierPts(tiers,ses.mins);
-      const tierBefore=calcTierPts(tiers,minsBeforeSession);
-      const tierGain=Math.min(tierNow-tierBefore,cap);
-      // don't double-count: mandatory +1pt is the main reward; tier bonus starts from next session
-    } else if(wasMetBefore){
-      // 必須達成後: 週累計でtier判定
-      const tierNow=calcTierPts(tiers,ses.mins);
-      const tierBefore=ses.bonusPtsEarned||0;
-      const tierGain=tierNow-tierBefore;
+      const tierGain=tierNow-(ses.bonusPtsEarned||0);
       if(tierGain>0){
-        earned=Math.min(tierGain,cap);
-        ses.bonusPtsEarned=(ses.bonusPtsEarned||0)+earned;
+        const dayPts=(ses.dailyPts||{})[dayKey]||0;
+        earned=Math.min(tierGain,Math.max(0,dayCap-dayPts));
       }
     }
-    // 未達成中: 0pt
+    // if not met yet: 0pt (mandatory unlock handled separately)
   } else {
-    // 任意項目: 週累計でtier判定
     const tierNow=calcTierPts(tiers,ses.mins);
-    const tierBefore=ses.bonusPtsEarned||0;
-    const tierGain=tierNow-tierBefore;
+    const tierGain=tierNow-(ses.bonusPtsEarned||0);
     if(tierGain>0){
-      earned=Math.min(tierGain,cap);
-      ses.bonusPtsEarned=(ses.bonusPtsEarned||0)+earned;
+      const dayPts=(ses.dailyPts||{})[dayKey]||0;
+      earned=Math.min(tierGain,Math.max(0,dayCap-dayPts));
     }
   }
+  return earned;
+}
 
-  // Apply daily cap for bonus pts (not for mandatory +1pt unlock)
+function recalcWeekLogsInOrder(logs, acts){
+  // Given logs sorted by date, recalculate pts for each
+  const sessions={};
+  logs.forEach(l=>{
+    const act=acts.find(a=>a.id===l.actId);
+    if(!act){return;}
+    const dk=l.dk||todayKey();
+    if(!sessions[act.id])sessions[act.id]={count:0,mins:0,mandatoryMet:false,bonusPtsEarned:0,dailyPts:{},activeDays:[]};
+    const ses=sessions[act.id];
+    const wasMet=ses.mandatoryMet;
+    ses.count+=(l.count||1);
+    ses.mins+=l.mins;
+    if(dk&&!ses.activeDays.includes(dk))ses.activeDays.push(dk);
+    const isNowMet=isMandatoryMet(act,sessions);
+    let earned=0;
+    if(act.mandatory){
+      if(!wasMet&&isNowMet){
+        earned=1;ses.mandatoryMet=true;
+        l.metAt=true;
+      } else if(wasMet){
+        const tierNow=calcTierPts(act.ptTiers||[],ses.mins);
+        const tierGain=tierNow-(ses.bonusPtsEarned||0);
+        if(tierGain>0){
+          const dayPts=(ses.dailyPts[dk]||0);
+          const cap=act.sessionCap||1;
+          earned=Math.min(tierGain,Math.max(0,cap-dayPts));
+          ses.bonusPtsEarned+=earned;
+          ses.dailyPts[dk]=(ses.dailyPts[dk]||0)+earned;
+        }
+        l.metAt=false;
+      } else {
+        l.metAt=false;
+      }
+    } else {
+      const tierNow=calcTierPts(act.ptTiers||[],ses.mins);
+      const tierGain=tierNow-(ses.bonusPtsEarned||0);
+      if(tierGain>0){
+        const dayPts=(ses.dailyPts[dk]||0);
+        const cap=act.sessionCap||1;
+        earned=Math.min(tierGain,Math.max(0,cap-dayPts));
+        ses.bonusPtsEarned+=earned;
+        ses.dailyPts[dk]=(ses.dailyPts[dk]||0)+earned;
+      }
+    }
+    l.pts=earned;
+  });
+  return {logs, sessions};
+}
+
+function logAct(id,mins,dk){
+  const S=cs();const a=ca().find(x=>x.id===id);if(!a)return;
   const dayKey=dk||todayKey();
-  if(!ses.dailyPts)ses.dailyPts={};
-  const dayPtsSoFar=ses.dailyPts[dayKey]||0;
-  // mandatory unlock (+1pt) is exempt from daily cap
-  const isMandatoryUnlock=(!wasMetBefore&&isMetNow);
-  if(!isMandatoryUnlock&&earned>0){
-    const allowed=Math.max(0,cap-dayPtsSoFar);
-    earned=Math.min(earned,allowed);
-  }
-  if(earned>0&&!isMandatoryUnlock){
-    ses.dailyPts[dayKey]=(ses.dailyPts[dayKey]||0)+earned;
-  }
-  // Track active days for daily bonus
-  if(!ses.activeDays)ses.activeDays=[];
-  if(!ses.activeDays.includes(dayKey))ses.activeDays.push(dayKey);
 
-  S.weekPts+=earned;
-  S.totalPts+=earned*mult;
-  S.logs.push({actId:id,name:a.name,emoji:a.emoji||'📌',pts:earned,mins,dk:dayKey,mandatory:a.mandatory,metAt:isMandatoryUnlock});
-  saveDB();render();
+  // Add log with pts=0 first
+  S.logs.push({actId:id,name:a.name,emoji:a.emoji||'📌',pts:0,mins,dk:dayKey,mandatory:a.mandatory,metAt:false});
+
+  // Recalculate ALL logs for current week in date order to get correct pts
+  const curWeekStart=getCurrentWeekStart();
+  const curWeekLogs=S.logs.filter(l=>getWeekStartForDate(l.dk||todayKey())===curWeekStart);
+  curWeekLogs.sort((a,b)=>(a.dk||'').localeCompare(b.dk||''));
+  const {logs:recalced, sessions}=recalcWeekLogsInOrder(curWeekLogs,ca());
+
+  // Update logs in S.logs with recalculated pts
+  recalced.forEach(rl=>{
+    const match=S.logs.find(l=>l===rl||
+      (l.actId===rl.actId&&l.dk===rl.dk&&l.mins===rl.mins&&l.pts!==undefined));
+    // Just update in place since recalced is same array reference
+  });
+
+  // Update weekSessions and weekPts from recalculated sessions
+  S.weekSessions=sessions;
+  S.weekPts=recalced.reduce((s,l)=>s+(l.pts||0),0);
+  S.totalPts=S.logs.reduce((s,l)=>s+(l.pts||0),0);
+
+  // Find what this new log earned
+  const newLog=S.logs[S.logs.length-1];
+  const earned=newLog.pts||0;
+  const isMandatoryUnlock=newLog.metAt;
+
+  saveDB();
+  // Trigger full recalc to update spendable etc
+  processWeekResets(cu());
+  render();
+
   let ptMsg=earned>0?` ＋${earned}pt`:'（0pt）';
-  if(!isMandatoryUnlock&&earned===0&&(ses.dailyPts[dayKey]||0)>=cap) ptMsg=`（本日上限${cap}ptに達成）`;
   const metMsg=isMandatoryUnlock?' 🎯 必須達成！+1pt':'';
   toast((a.emoji||'📌')+' '+mins+'分'+ptMsg+metMsg);
 }
@@ -1671,63 +1718,24 @@ function selectEditDate(k){
   document.querySelectorAll('#edit-date-row .date-btn').forEach(b=>b.classList.toggle('sel',b.dataset.dk===k));
 }
 function recalcSessionsFromLogs(){
-  // Rebuild weekSessions from scratch based on current logs
+  // Recalculate all logs week by week using recalcWeekLogsInOrder
   const S=cs();const acts=ca();
-  S.weekSessions={};
-  S.weekPts=0;
-  let newTotal=0;
-  const mult=getBonus(cu());
-  // Reset bonusPtsEarned tracking per act
-  const actBonusTrack={};
-  acts.forEach(a=>{actBonusTrack[a.id]={mandatoryMet:false,bonusPtsEarned:0,dailyPts:{}};});
-  // Process logs in order to recalculate pts
+  // Group logs by week
+  const byWeek={};
   S.logs.forEach(l=>{
-    const a=acts.find(x=>x.id===l.actId);
-    if(!a)return;
-    const dk=l.dk||todayKey();
-    if(!S.weekSessions[l.actId])S.weekSessions[l.actId]={count:0,mins:0,mandatoryMet:false,bonusPtsEarned:0,dailyPts:{},activeDays:[]};
-    const ses=S.weekSessions[l.actId];
-    const track=actBonusTrack[l.actId];
-    const wasMetBefore=track.mandatoryMet;
-    ses.count+=(l.count||1);ses.mins+=l.mins;
-    const isMetNow=isMandatoryMet(a,S.weekSessions);
-    let earned=0;
-    const tiers=a.ptTiers||[];
-    const dayCap=a.sessionCap||1;
-    if(a.mandatory){
-      if(!wasMetBefore&&isMetNow){earned=1;track.mandatoryMet=true;ses.mandatoryMet=true;}
-      else if(wasMetBefore){
-        const tierNow=calcTierPts(tiers,ses.mins);
-        const tierGain=tierNow-(track.bonusPtsEarned||0);
-        if(tierGain>0){
-          const dayPts=ses.dailyPts[dk]||0;
-          const allowed=Math.max(0,dayCap-dayPts);
-          earned=Math.min(tierGain,allowed);
-          track.bonusPtsEarned=(track.bonusPtsEarned||0)+earned;
-          ses.bonusPtsEarned=track.bonusPtsEarned;
-          if(earned>0)ses.dailyPts[dk]=(ses.dailyPts[dk]||0)+earned;
-        }
-      }
-    } else {
-      const tierNow=calcTierPts(tiers,ses.mins);
-      const tierGain=tierNow-(track.bonusPtsEarned||0);
-      if(tierGain>0){
-        const dayPts=ses.dailyPts[dk]||0;
-        const allowed=Math.max(0,dayCap-dayPts);
-        earned=Math.min(tierGain,allowed);
-        track.bonusPtsEarned=(track.bonusPtsEarned||0)+earned;
-        ses.bonusPtsEarned=track.bonusPtsEarned;
-        if(earned>0)ses.dailyPts[dk]=(ses.dailyPts[dk]||0)+earned;
-      }
-    }
-    l.pts=earned;
-    l.metAt=(!wasMetBefore&&isMetNow);
-    S.weekPts+=earned;
-    newTotal+=earned*mult;
-    if(!ses.activeDays)ses.activeDays=[];
-    if(!ses.activeDays.includes(dk))ses.activeDays.push(dk);
+    const ws=getWeekStartForDate(l.dk||todayKey());
+    if(!byWeek[ws])byWeek[ws]=[];
+    byWeek[ws].push(l);
   });
-  S.totalPts=newTotal;
+  // Sort each week's logs by date and recalculate
+  Object.keys(byWeek).forEach(ws=>{
+    byWeek[ws].sort((a,b)=>(a.dk||'').localeCompare(b.dk||''));
+    recalcWeekLogsInOrder(byWeek[ws],acts);
+  });
+  // Update derived state
+  S.totalPts=S.logs.reduce((s,l)=>s+(l.pts||0),0);
+  // Then run processWeekResets to update weekPts, sessions, streak, spendable
+  processWeekResets(cu());
 }
 function saveLogEdit(){
   const mins=parseInt(document.getElementById('edit-mins').value)||0;
